@@ -1,22 +1,36 @@
-/* Animation Custom สำหรับช่องป้อนคำตอบผิด */
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-8px); }
-    40%, 80% { transform: translateX(8px); }
-}
+* { box-sizing: border-box; font-family: 'Kanit', sans-serif; margin: 0; padding: 0; }
+body { background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.container { width: 100%; max-width: 420px; padding: 15px; }
+.card { background: #1e293b; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
+.hidden { display: none; }
+input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-size: 1rem; }
+input, select { background: #334155; color: #fff; }
+button { background: #3b82f6; color: #fff; font-weight: bold; cursor: pointer; transition: 0.2s; }
+button:hover { background: #2563eb; }
+.btn-sec { background: #64748b; }
+.btn-start { background: #10b981; font-size: 1.2rem; }
+.error-text { color: #ef4444; margin-top: 5px; font-size: 0.9rem; }
 
-.shake {
-    animation: shake 0.3s ease-in-out;
-    border-color: #f43f5e !important;
-    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4) !important;
-}
+/* Rank Badge Styles */
+.rank-badge { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; display: inline-block; margin-top: 5px; }
+.rank-bronze { background: #cd7f32; color: #fff; }
+.rank-silver { background: #c0c0c0; color: #333; }
+.rank-gold { background: #ffd700; color: #333; }
+.rank-diamond { background: #00ffff; color: #000; box-shadow: 0 0 10px #00ffff; }
+.rank-master { background: linear-gradient(45deg, #ff007f, #7928ca); color: #fff; box-shadow: 0 0 12px #ff007f; }
 
-/* ซ่อนลูกศรใน Input type number */
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-input[type=number] {
-    -moz-appearance: textfield;
-}
+/* Emote Bar & VFX */
+.emote-bar { display: flex; gap: 5px; margin: 10px 0; }
+.emote-bar button { width: auto; flex: 1; padding: 6px; font-size: 1.2rem; background: #334155; }
+.emote-pop { position: absolute; font-size: 2.5rem; animation: floatUp 1.2s forwards ease-out; pointer-events: none; }
+@keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.8); } 100% { opacity: 0; transform: translateY(-60px) scale(1.2); } }
+
+/* Arena layout */
+#arena-area { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; position: relative; }
+.player-card { background: #334155; padding: 10px; border-radius: 10px; width: 42%; position: relative; }
+.score { font-size: 1.8rem; font-weight: bold; color: #f59e0b; }
+.problem-display { font-size: 2.5rem; font-weight: bold; margin: 15px 0; color: #38bdf8; }
+.combo-fire { color: #ff4500; font-weight: bold; font-size: 0.9rem; }
+
+.shake { animation: shakeAnim 0.3s ease-in-out; }
+@keyframes shakeAnim { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
