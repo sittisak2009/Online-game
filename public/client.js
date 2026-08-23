@@ -12,9 +12,11 @@ const matchInfo = document.getElementById('match-info');
 const problemEl = document.getElementById('problem');
 const answerInput = document.getElementById('answer');
 const timerBar = document.getElementById('timer-bar');
+const questionTracker = document.getElementById('question-tracker');
 
 const difficultySelect = document.getElementById('difficulty-select');
 const timeSelect = document.getElementById('time-select');
+const questionCountSelect = document.getElementById('question-count-select');
 
 const findMatchBtn = document.getElementById('find-match-btn');
 const cancelMatchBtn = document.getElementById('cancel-match-btn');
@@ -32,13 +34,15 @@ const modalDesc = document.getElementById('modal-desc');
 findMatchBtn.addEventListener('click', () => {
     const diff = difficultySelect.value;
     const time = timeSelect.value;
+    const totalQ = questionCountSelect.value;
 
     lobbyBox.classList.add('hidden');
     statusBox.classList.remove('hidden');
     
     const timeText = time === 'unlimited' ? 'ไม่จำกัดเวลา' : `${time}s`;
-    matchInfo.innerText = `เงื่อนไข: ความยาก [${diff}] | เวลา [${timeText}]`;
-    socket.emit('findMatch', { difficulty: diff, timeLimit: time });
+    matchInfo.innerHTML = `ความยาก: <span class="text-cyan-400 font-bold">${diff}</span> | เวลา: <span class="text-cyan-400 font-bold">${timeText}</span><br>จำนวน: <span class="text-cyan-400 font-bold">${totalQ} ข้อ</span>`;
+    
+    socket.emit('findMatch', { difficulty: diff, timeLimit: time, totalQuestions: totalQ });
 });
 
 cancelMatchBtn.addEventListener('click', () => {
@@ -59,6 +63,7 @@ socket.on('gameStart', (data) => {
     statusBox.classList.add('hidden');
     gameBox.classList.remove('hidden');
     problemEl.innerText = data.problem;
+    questionTracker.innerText = `ข้อที่ ${data.currentQuestion} / ${data.totalQuestions}`;
     updateScores(data.scores);
     answerInput.focus();
 });
@@ -82,6 +87,7 @@ socket.on('timerUpdate', ({ timeLeft, maxTime, isUnlimited }) => {
 
 socket.on('nextProblem', (data) => {
     problemEl.innerText = data.problem;
+    questionTracker.innerText = `ข้อที่ ${data.currentQuestion} / ${data.totalQuestions}`;
     answerInput.value = '';
     updateScores(data.scores);
 });
@@ -93,12 +99,19 @@ socket.on('wrongAnswer', () => {
 
 socket.on('gameOver', (data) => {
     updateScores(data.scores);
-    const isWinner = data.winnerId === socket.id;
     
-    modalIcon.innerText = isWinner ? "👑" : "💀";
-    modalTitle.innerText = isWinner ? "VICTORY!" : "DEFEAT!";
-    modalTitle.className = `text-2xl font-black mb-2 ${isWinner ? 'text-cyan-400' : 'text-rose-500'}`;
-    modalDesc.innerText = isWinner ? "ชนะแล้ว! ทำคะแนนถึงเป้าหมายก่อน" : "แพ้แล้ว! คู่แข่งทำคะแนนได้เร็วกว่า";
+    if (data.resultType === 'draw') {
+        modalIcon.innerText = "🤝";
+        modalTitle.innerText = "DRAW!";
+        modalTitle.className = "text-2xl font-black mb-2 text-amber-400";
+        modalDesc.innerText = "เสมอ! ทั้งสองฝั่งทำคะแนนได้เท่ากันพอดี";
+    } else {
+        const isWinner = data.winnerId === socket.id;
+        modalIcon.innerText = isWinner ? "👑" : "💀";
+        modalTitle.innerText = isWinner ? "VICTORY!" : "DEFEAT!";
+        modalTitle.className = `text-2xl font-black mb-2 ${isWinner ? 'text-cyan-400' : 'text-rose-500'}`;
+        modalDesc.innerText = isWinner ? "ชนะแล้ว! ทำคะแนนรวมได้สูงกว่าเมื่อจบเกม" : "แพ้แล้ว! คู่แข่งทำคะแนนรวมได้สูงกว่า";
+    }
     
     modal.classList.remove('hidden');
 });
@@ -129,3 +142,4 @@ submitBtn.addEventListener('click', sendAnswer);
 answerInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendAnswer();
 });
+            
