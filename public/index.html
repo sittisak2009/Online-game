@@ -30,12 +30,11 @@
 
             <div class="form-group hidden" id="country-group">
                 <label>ประเทศ</label>
-                <select id="lb-country-filter" onchange="getLeaderboard()" style="width: auto; padding: 6px 10px;">
-                  <option value="ALL">🌐 Global (ทั่วโลก)</option>
-                  <option value="TH">🇹🇭 ไทย</option>
-                  <option value="US">🇺🇸 สหรัฐอเมริกา</option>
-                  <option value="GB">🇬🇧 สหราชอาณาจักร</option>
-                  <option value="RU">🇷🇺 รัสเซีย</option>
+                <select id="auth-country">
+                    <option value="TH">🇹🇭 ไทย</option>
+                    <option value="US">🇺🇸 สหรัฐอเมริกา</option>
+                    <option value="GB">🇬🇧 สหราชอาณาจักร</option>
+                    <option value="RU">🇷🇺 รัสเซีย</option>
                 </select>
             </div>
 
@@ -62,7 +61,7 @@
                     <label>เวลาต่อข้อ</label>
                     <select id="time-select">
                         <option value="5">5 วินาที</option>
-                        <option value="10" selected>10 วินาที (กำลังดี)</option>
+                        <option value="10" selected>10 วินาที</option>
                         <option value="15">15 วินาที</option>
                         <option value="unlimited">ไม่จำกัดเวลา</option>
                     </select>
@@ -72,7 +71,7 @@
                     <label>จำนวนข้อ</label>
                     <select id="q-select">
                         <option value="5">5 ข้อ</option>
-                        <option value="10" selected>10 ข้อ (มาตรฐาน)</option>
+                        <option value="10" selected>10 ข้อ</option>
                         <option value="20">20 ข้อ</option>
                     </select>
                 </div>
@@ -84,8 +83,8 @@
             </div>
 
             <div id="queue-box" class="inner-box hidden" style="margin-top: 15px; margin-bottom: 0;">
-                <div style="color: #00d2ff; font-weight: bold; margin-bottom: 5px;">กำลังรอคู่ต่อสู้สายสปีดมาท้าดวล...</div>
-                <div id="queue-info" style="font-size: 0.85rem; color: #6c7a9c; margin-bottom: 10px;">โหมด: medium | เวลา: 10s | 10 ข้อ</div>
+                <div style="color: #00d2ff; font-weight: bold; margin-bottom: 5px;">กำลังรอคู่ต่อสู้...</div>
+                <div id="queue-info" style="font-size: 0.85rem; color: #6c7a9c; margin-bottom: 10px;"></div>
                 <button onclick="cancelMatch()" style="background: transparent; color: #ff416c; border: none; cursor: pointer; font-weight: bold;">ยกเลิกค้นหา</button>
             </div>
 
@@ -99,14 +98,14 @@
             <div class="logo-title">⚔️ MATH ARENA 1v1</div>
             <div class="subtitle">🎮 <span id="lb-user-name">Player</span></div>
 
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="color: #ffb703; margin: 0;">🏆 TOP PLAYERS</h3>
-                <select id="lb-country-filter" onchange="getLeaderboard()" style="width: auto; padding: 6px 10px;">
-                  <option value="ALL">🌐 Global (ทั่วโลก)</option>
-                  <option value="TH">🇹🇭 ไทย</option>
-                  <option value="US">🇺🇸 สหรัฐอเมริกา</option>
-                  <option value="GB">🇬🇧 สหราชอาณาจักร</option>
-                  <option value="RU">🇷🇺 รัสเซีย</option>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 8px;">
+                <h3 style="color: #ffb703; margin: 0; font-size: 1rem; white-space: nowrap;">🏆 TOP PLAYERS</h3>
+                <select id="lb-country-filter" onchange="getLeaderboard()" style="width: auto; padding: 6px 8px; font-size: 0.85rem;">
+                    <option value="ALL">🌐 Global</option>
+                    <option value="TH">🇹🇭 ไทย</option>
+                    <option value="US">🇺🇸 สหรัฐฯ</option>
+                    <option value="GB">🇬🇧 สหราชฯ</option>
+                    <option value="RU">🇷🇺 รัสเซีย</option>
                 </select>
             </div>
 
@@ -147,7 +146,6 @@
                 </div>
             </div>
 
-            <!-- Emote Bar -->
             <div class="emote-bar">
                 <button onclick="sendEmote('🤣')">🤣</button>
                 <button onclick="sendEmote('😎')">😎</button>
