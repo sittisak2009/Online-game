@@ -31,6 +31,7 @@
             <div class="form-group hidden" id="country-group">
                 <label>ประเทศ</label>
                 <select id="auth-country">
+                    <option value="All">🌐 Global</option>
                     <option value="TH">🇹🇭 ไทย</option>
                     <option value="US">🇺🇸 สหรัฐอเมริกา</option>
                     <option value="GB">🇬🇧 สหราชอาณาจักร</option>
@@ -159,8 +160,8 @@
         </div>
     </div>
 
-    <!-- Custom Modal Popup (ซ่อนตั้งแต่เริ่มต้น) -->
-    <div id="modal-box" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; display: flex; align-items: center; justify-content: center;">
+    <!-- Custom Modal Popup (ตั้งค่าซ่อนไว้ตั้งแต่แรกด้วย display: none) -->
+    <div id="modal-box" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
         <div class="card" style="max-width: 320px; width: 85%; text-align: center; border: 2px solid #00d2ff; box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);">
             <div id="modal-icon" style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
             <h3 id="modal-title" style="color: #00d2ff; margin-bottom: 10px;">แจ้งเตือน</h3>
