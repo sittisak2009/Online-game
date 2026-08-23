@@ -13,8 +13,21 @@ function showScreen(screenId) {
 
 async function handleLogin(event) {
     if (event) event.preventDefault();
-    const username = document.getElementById('loginUsername').value;
-    const password = document.getElementById('loginPassword').value;
+    const usernameInput = document.getElementById('loginUsername');
+    const passwordInput = document.getElementById('loginPassword');
+    
+    if (!usernameInput || !passwordInput) {
+        console.error("ไม่พบฟอร์มล็อกอินในหน้า HTML");
+        return;
+    }
+
+    const username = usernameInput.value;
+    const password = passwordInput.value;
+
+    if (!username || !password) {
+        alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+        return;
+    }
 
     try {
         const res = await fetch('/api/login', {
@@ -33,14 +46,29 @@ async function handleLogin(event) {
         }
     } catch (err) {
         console.error("Login error:", err);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
 }
 
 async function handleRegister(event) {
     if (event) event.preventDefault();
-    const username = document.getElementById('regUsername').value;
-    const password = document.getElementById('regPassword').value;
-    const country = document.getElementById('regCountry') ? document.getElementById('regCountry').value : 'TH';
+    const usernameInput = document.getElementById('regUsername');
+    const passwordInput = document.getElementById('regPassword');
+    const countrySelect = document.getElementById('regCountry');
+
+    if (!usernameInput || !passwordInput) {
+        console.error("ไม่พบฟอร์มสมัครสมาชิกในหน้า HTML");
+        return;
+    }
+
+    const username = usernameInput.value;
+    const password = passwordInput.value;
+    const country = countrySelect ? countrySelect.value : 'TH';
+
+    if (!username || !password) {
+        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+        return;
+    }
 
     try {
         const res = await fetch('/api/register', {
@@ -59,6 +87,7 @@ async function handleRegister(event) {
         }
     } catch (err) {
         console.error("Register error:", err);
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
 }
 
@@ -181,6 +210,13 @@ socket.on('gameOver', (data) => {
 });
 
 window.onload = () => {
+    // ผูก Event Listener ให้ฟอร์ม Login และ Register อัตโนมัติ (ป้องกันลืมใส่ onSubmit ใน HTML)
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) loginForm.addEventListener('submit', handleLogin);
+
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) registerForm.addEventListener('submit', handleRegister);
+
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
         showScreen('mainMenuScreen');
@@ -189,4 +225,3 @@ window.onload = () => {
         showScreen('loginScreen');
     }
 };
-    
