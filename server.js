@@ -11,7 +11,6 @@ app.use(express.static('public'));
 let matchmakingQueue = [];
 const games = {};
 
-// สุ่มโจทย์ตามระดับความยาก
 function generateProblem(difficulty) {
     let num1, num2, isAdd, answer, text;
     
@@ -28,7 +27,7 @@ function generateProblem(difficulty) {
         if (type === 0) { text = `${num1} + ${num2}`; answer = num1 + num2; }
         else if (type === 1) { text = `${Math.max(num1, num2)} - ${Math.min(num1, num2)}`; answer = Math.abs(num1 - num2); }
         else { text = `${num1} × ${num2}`; answer = num1 * num2; }
-    } else { // hard
+    } else {
         const type = Math.floor(Math.random() * 2);
         if (type === 0) {
             num1 = Math.floor(Math.random() * 50) + 10;
@@ -45,7 +44,6 @@ function generateProblem(difficulty) {
     return { text, answer };
 }
 
-// ระบบจัดการเวลา
 function startTimer(roomId) {
     const game = games[roomId];
     if (!game) return;
@@ -60,7 +58,6 @@ function startTimer(roomId) {
         io.to(roomId).emit('timerUpdate', { timeLeft: game.timeLeft, maxTime: game.timeLimit });
 
         if (game.timeLeft <= 0) {
-            // หมดเวลาโดยไม่มีคนตอบถูก -> สุ่มโจทย์ใหม่
             game.currentProblem = generateProblem(game.difficulty);
             io.to(roomId).emit('nextProblem', {
                 problem: game.currentProblem.text,
@@ -74,12 +71,19 @@ function startTimer(roomId) {
 io.on('connection', (socket) => {
 
     socket.on('findMatch', ({ difficulty, timeLimit }) => {
-        // ค้นหาผู้เล่นในคิวที่มีเงื่อนไขตรงกันทั้งความยากและเวลา
+        // ลบ socket เก่าออกจากคิวป้องกันคิวค้าง
+        matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
+
+        // แปลงเวลาเป็น Number เสมอ ป้องกันการเทียบ String กับ Number ไม่ตรงกัน
+        const timeLimitNum = Number(timeLimit);
+
+        // ค้นหาคู่แข่งที่มี difficulty และ timeLimit ตรงกัน
         const opponentIndex = matchmakingQueue.findIndex(
-            p => p.difficulty === difficulty && p.timeLimit === timeLimit && p.id !== socket.id
+            p => p.difficulty === difficulty && Number(p.timeLimit) === timeLimitNum
         );
 
         if (opponentIndex !== -1) {
+            // ดึงผู้เล่นคนนั้นออกจากคิว
             const opponent = matchmakingQueue.splice(opponentIndex, 1)[0];
             const p1Socket = io.sockets.sockets.get(opponent.id);
             const p2Socket = socket;
@@ -93,8 +97,8 @@ io.on('connection', (socket) => {
                     p1: { id: opponent.id, score: 0 },
                     p2: { id: socket.id, score: 0 },
                     difficulty: difficulty,
-                    timeLimit: parseInt(timeLimit),
-                    timeLeft: parseInt(timeLimit),
+                    timeLimit: timeLimitNum,
+                    timeLeft: timeLimitNum,
                     currentProblem: generateProblem(difficulty),
                     timer: null
                 };
@@ -108,9 +112,9 @@ io.on('connection', (socket) => {
                 startTimer(roomId);
             }
         } else {
-            matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
-            matchmakingQueue.push({ id: socket.id, difficulty, timeLimit: parseInt(timeLimit) });
-            socket.emit('waiting', 'กำลังหาคู่แข่งที่เลือกเงื่อนไขเดียวกัน...');
+            // ถ้ายังไม่มีคู่แข่ง ให้ใส่ตัวเองลงคิว
+            matchmakingQueue.push({ id: socket.id, difficulty, timeLimit: timeLimitNum });
+            socket.emit('waiting', 'กำลังรอผู้เล่นอื่นที่เลือกเงื่อนไขเดียวกัน...');
         }
     });
 
@@ -166,4 +170,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-                         
+        
