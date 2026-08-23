@@ -6,15 +6,19 @@ let currentRoom = null;
 let myIndex = null;
 let timerInterval = null;
 
+// ฟังก์ชันเปิด-ปิด Custom Modal
 function showModal(title, msg, icon = '🏆') {
     document.getElementById('modal-title').innerText = title;
     document.getElementById('modal-msg').innerText = msg;
     document.getElementById('modal-icon').innerText = icon;
-    document.getElementById('modal-box').classList.remove('hidden');
+    
+    const modalBox = document.getElementById('modal-box');
+    modalBox.style.display = 'flex'; // แสดง Modal
 }
 
 function closeModal() {
-    document.getElementById('modal-box').classList.add('hidden');
+    const modalBox = document.getElementById('modal-box');
+    modalBox.style.display = 'none'; // ซ่อน Modal
 }
 
 function switchTab(tab) {
