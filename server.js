@@ -138,7 +138,20 @@ io.on('connection', (socket) => {
     socket.on('cancelMatch', () => {
         waitingQueue = waitingQueue.filter(p => p.socketId !== socket.id);
     });
+        socket.on('surrender', ({ roomId }) => {
+        const room = rooms[roomId];
+        if (!room) return;
 
+        const surrenderingUser = socket.user ? socket.user.username : 'ผู้เล่น';
+        
+        io.to(roomId).emit('gameOver', {
+            surrenderedBy: surrenderingUser,
+            scores: room.scores
+        });
+
+        delete rooms[roomId];
+    });
+    
     // ⚡ ระบบตรวจเช็กการเชื่อมต่อหลุด (Disconnect)
     socket.on('disconnect', () => {
         // 1. ลบออกจากคิวรอแข่ง (กรณีหลุดตอนกำลังค้นหาห้อง)
