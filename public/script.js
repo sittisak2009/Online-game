@@ -2,6 +2,11 @@ const socket = io();
 
 let currentRoomId = null;
 let isMyTurn = true;
+let soloGameQuestions = [];
+let soloCurrentIndex = 0;
+let soloScore = 0;
+let soloTimer = null;
+let soloTimeLeft = 0;
 
 function showScreen(screenId) {
     document.querySelectorAll('.screen').forEach(screen => {
@@ -13,21 +18,8 @@ function showScreen(screenId) {
 
 async function handleLogin(event) {
     if (event) event.preventDefault();
-    const usernameInput = document.getElementById('loginUsername');
-    const passwordInput = document.getElementById('loginPassword');
-    
-    if (!usernameInput || !passwordInput) {
-        console.error("ไม่พบฟอร์มล็อกอินในหน้า HTML");
-        return;
-    }
-
-    const username = usernameInput.value;
-    const password = passwordInput.value;
-
-    if (!username || !password) {
-        alert('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
-        return;
-    }
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
 
     try {
         const res = await fetch('/api/login', {
@@ -46,29 +38,14 @@ async function handleLogin(event) {
         }
     } catch (err) {
         console.error("Login error:", err);
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
 }
 
 async function handleRegister(event) {
     if (event) event.preventDefault();
-    const usernameInput = document.getElementById('regUsername');
-    const passwordInput = document.getElementById('regPassword');
-    const countrySelect = document.getElementById('regCountry');
-
-    if (!usernameInput || !passwordInput) {
-        console.error("ไม่พบฟอร์มสมัครสมาชิกในหน้า HTML");
-        return;
-    }
-
-    const username = usernameInput.value;
-    const password = passwordInput.value;
-    const country = countrySelect ? countrySelect.value : 'TH';
-
-    if (!username || !password) {
-        alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-        return;
-    }
+    const username = document.getElementById('regUsername').value;
+    const password = document.getElementById('regPassword').value;
+    const country = document.getElementById('regCountry') ? document.getElementById('regCountry').value : 'TH';
 
     try {
         const res = await fetch('/api/register', {
@@ -87,7 +64,6 @@ async function handleRegister(event) {
         }
     } catch (err) {
         console.error("Register error:", err);
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
     }
 }
 
@@ -110,11 +86,6 @@ async function loadLeaderboard() {
             const draws = Number(player.draws || 0);
             const totalGames = wins + losses + draws;
 
-            let winRate = 0;
-            if (totalGames > 0) {
-                winRate = ((wins / totalGames) * 100).toFixed(1);
-            }
-
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>#${index + 1}</td>
@@ -124,7 +95,6 @@ async function loadLeaderboard() {
                 <td>${losses}</td>
                 <td>${draws}</td>
                 <td>${totalGames}</td>
-                <td style="color: #4CAF50; font-weight: bold;">${winRate}%</td>
             `;
             leaderboardTableBody.appendChild(row);
         });
@@ -157,6 +127,15 @@ function cancelMatchmaking() {
     showScreen('mainMenuScreen');
 }
 
+function startSoloMode() {
+    const diff = document.getElementById('soloDiffSelect').value;
+    const questions = document.getElementById('soloQCountSelect').value;
+    const time = document.getElementById('soloTimeSelect').value;
+
+    const config = { diff, questions, time };
+    socket.emit('startSoloPractice', { config });
+}
+
 function submitPlayerAnswer() {
     const answerInput = document.getElementById('answerInput');
     if (!answerInput) return;
@@ -167,11 +146,54 @@ function submitPlayerAnswer() {
     answerInput.value = '';
 }
 
+function submitSoloAnswer() {
+    const answerInput = document.getElementById('soloAnswerInput');
+    if (!answerInput) return;
+    const answer = Number(answerInput.value);
+    if (answerInput.value === '') return;
+
+    const currentQ = soloGameQuestions[soloCurrentIndex];
+    if (answer === currentQ.correctAnswer) {
+        soloScore += 10;
+        soloCurrentIndex++;
+        answerInput.value = '';
+
+        if (soloCurrentIndex < soloGameQuestions.length) {
+            loadSoloQuestion();
+        } else {
+            clearInterval(soloTimer);
+            alert(`จบโหมดฝึกซ้อม! คะแนนรวมของคุณ: ${soloScore}`);
+            showScreen('mainMenuScreen');
+        }
+    } else {
+        alert('ตอบผิด! ลองใหม่อีกครั้ง');
+    }
+}
+
+function loadSoloQuestion() {
+    const qText = document.getElementById('soloQuestionText');
+    const qCounter = document.getElementById('soloQuestionCounter');
+    const qScore = document.getElementById('soloScoreDisplay');
+    
+    const currentQ = soloGameQuestions[soloCurrentIndex];
+    if (qText) qText.innerText = currentQ.text;
+    if (qCounter) qCounter.innerText = `ข้อที่ ${soloCurrentIndex + 1} / ${soloGameQuestions.length}`;
+    if (qScore) qScore.innerText = `คะแนน: ${soloScore}`;
+}
+
 function surrenderGame() {
     if (confirm('คุณต้องการยอมแพ้ใช่หรือไม่?')) {
         socket.emit('surrender', { roomId: currentRoomId });
     }
 }
+
+socket.on('soloGameStarted', (data) => {
+    soloGameQuestions = data.questionsList;
+    soloCurrentIndex = 0;
+    soloScore = 0;
+    showScreen('soloGameScreen');
+    loadSoloQuestion();
+});
 
 socket.on('matchFound', (data) => {
     currentRoomId = data.roomId;
@@ -210,13 +232,6 @@ socket.on('gameOver', (data) => {
 });
 
 window.onload = () => {
-    // ผูก Event Listener ให้ฟอร์ม Login และ Register อัตโนมัติ (ป้องกันลืมใส่ onSubmit ใน HTML)
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) loginForm.addEventListener('submit', handleLogin);
-
-    const registerForm = document.getElementById('registerForm');
-    if (registerForm) registerForm.addEventListener('submit', handleRegister);
-
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
         showScreen('mainMenuScreen');
@@ -225,3 +240,4 @@ window.onload = () => {
         showScreen('loginScreen');
     }
 };
+            
