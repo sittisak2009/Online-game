@@ -1,25 +1,28 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Database Setup (SQLite ถาวร)
-const db = new Database('game.db');
-db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        country TEXT,
-        wins INTEGER DEFAULT 0,
-        losses INTEGER DEFAULT 0,
-        draws INTEGER DEFAULT 0
-    )
-`);
+// Database Setup (SQLite3)
+const db = new sqlite3.Database('game.db');
+
+db.serialize(() => {
+    db.run(`
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE,
+            password TEXT,
+            country TEXT,
+            wins INTEGER DEFAULT 0,
+            losses INTEGER DEFAULT 0,
+            draws INTEGER DEFAULT 0
+        )
+    `);
+});
 
 app.use(express.static('public'));
 
@@ -60,12 +63,12 @@ function generateProblem(difficulty) {
 
 function updateStats(p1User, p2User, resultType, winnerUsername) {
     if (resultType === 'draw') {
-        db.prepare('UPDATE users SET draws = draws + 1 WHERE username = ?').run(p1User);
-        db.prepare('UPDATE users SET draws = draws + 1 WHERE username = ?').run(p2User);
+        db.run('UPDATE users SET draws = draws + 1 WHERE username = ?', [p1User]);
+        db.run('UPDATE users SET draws = draws + 1 WHERE username = ?', [p2User]);
     } else {
         const loserUsername = winnerUsername === p1User ? p2User : p1User;
-        db.prepare('UPDATE users SET wins = wins + 1 WHERE username = ?').run(winnerUsername);
-        db.prepare('UPDATE users SET losses = losses + 1 WHERE username = ?').run(loserUsername);
+        db.run('UPDATE users SET wins = wins + 1 WHERE username = ?', [winnerUsername]);
+        db.run('UPDATE users SET losses = losses + 1 WHERE username = ?', [loserUsername]);
     }
 }
 
@@ -139,23 +142,24 @@ io.on('connection', (socket) => {
 
     // Auth: Register
     socket.on('register', ({ username, password, country }) => {
-        try {
-            const stmt = db.prepare('INSERT INTO users (username, password, country) VALUES (?, ?, ?)');
-            stmt.run(username, password, country);
-            socket.emit('authSuccess', { username, country });
-        } catch (err) {
-            socket.emit('authError', 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
-        }
+        db.run('INSERT INTO users (username, password, country) VALUES (?, ?, ?)', [username, password, country], function(err) {
+            if (err) {
+                socket.emit('authError', 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+            } else {
+                socket.emit('authSuccess', { username, country });
+            }
+        });
     });
 
     // Auth: Login
     socket.on('login', ({ username, password }) => {
-        const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password);
-        if (user) {
-            socket.emit('authSuccess', { username: user.username, country: user.country });
-        } else {
-            socket.emit('authError', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-        }
+        db.get('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, user) => {
+            if (user) {
+                socket.emit('authSuccess', { username: user.username, country: user.country });
+            } else {
+                socket.emit('authError', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+            }
+        });
     });
 
     // Leaderboard Data
@@ -168,8 +172,9 @@ io.on('connection', (socket) => {
         }
         query += ' ORDER BY wins DESC LIMIT 20';
 
-        const list = db.prepare(query).all(...params);
-        socket.emit('leaderboardData', list);
+        db.all(query, params, (err, rows) => {
+            socket.emit('leaderboardData', rows || []);
+        });
     });
 
     // Matchmaking
@@ -261,4 +266,3 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-        
