@@ -7,7 +7,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const db = new sqlite3.Database('game.db');
+// เปลี่ยนเป็น game_v2.db เพื่อสร้างฐานข้อมูลใหม่ ป้องกันไอดีเก่าตกค้าง
+const db = new sqlite3.Database('game_v2.db');
 
 db.serialize(() => {
     db.run(`
@@ -102,7 +103,6 @@ function nextRound(roomId) {
     game.currentQuestion += 1;
     game.currentProblem = generateProblem(game.difficulty);
 
-    // Reset combos if needed
     io.to(roomId).emit('nextProblem', {
         currentQuestion: game.currentQuestion,
         totalQuestions: game.totalQuestions,
@@ -140,18 +140,46 @@ function startTimer(roomId) {
 
 io.on('connection', (socket) => {
 
+    // Auth: Register (ปรับปรุงใหม่ แก้ปัญหาความซ้ำซ้อน)
     socket.on('register', ({ username, password, country }) => {
-        db.run('INSERT INTO users (username, password, country) VALUES (?, ?, ?)', [username, password, country], function(err) {
+        const cleanUser = (username || '').trim();
+        const cleanPass = (password || '').trim();
+
+        if (!cleanUser || !cleanPass) {
+            return socket.emit('authError', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+        }
+
+        db.get('SELECT username FROM users WHERE LOWER(username) = LOWER(?)', [cleanUser], (err, row) => {
             if (err) {
-                socket.emit('authError', 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
-            } else {
-                socket.emit('authSuccess', { username, country });
+                return socket.emit('authError', 'เกิดข้อผิดพลาดของฐานข้อมูล');
             }
+            if (row) {
+                return socket.emit('authError', 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+            }
+
+            db.run('INSERT INTO users (username, password, country) VALUES (?, ?, ?)', [cleanUser, cleanPass, country], function(err) {
+                if (err) {
+                    socket.emit('authError', 'ไม่สามารถลงทะเบียนได้ กรุณาลองใหม่');
+                } else {
+                    socket.emit('authSuccess', { username: cleanUser, country });
+                }
+            });
         });
     });
 
+    // Auth: Login (ปรับปรุงใหม่ ค้นหาแม่นยำขึ้น)
     socket.on('login', ({ username, password }) => {
-        db.get('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, user) => {
+        const cleanUser = (username || '').trim();
+        const cleanPass = (password || '').trim();
+
+        if (!cleanUser || !cleanPass) {
+            return socket.emit('authError', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+        }
+
+        db.get('SELECT * FROM users WHERE LOWER(username) = LOWER(?) AND password = ?', [cleanUser, cleanPass], (err, user) => {
+            if (err) {
+                return socket.emit('authError', 'เกิดข้อผิดพลาดของฐานข้อมูล');
+            }
             if (user) {
                 socket.emit('authSuccess', { username: user.username, country: user.country });
             } else {
@@ -160,6 +188,7 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Leaderboard Data
     socket.on('getLeaderboard', ({ country }) => {
         let query = 'SELECT username, country, wins, losses, draws FROM users';
         let params = [];
@@ -174,6 +203,7 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Matchmaking
     socket.on('findMatch', ({ username, difficulty, timeLimit, totalQuestions }) => {
         matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
 
@@ -253,7 +283,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Handle Attack Skill Event
     socket.on('useSkill', ({ roomId, skillType }) => {
         socket.to(roomId).emit('receiveAttack', { skillType });
     });
