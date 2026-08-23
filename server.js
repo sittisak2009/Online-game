@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const https = require('https');
 const { Server } = require('socket.io');
 const sqlite3 = require('sqlite3').verbose();
 const axios = require('axios');
@@ -8,12 +9,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// 📌 ใส่ API URL จาก SheetDB ที่นี่ครับนาย
 const SHEETDB_URL = 'https://sheetdb.io/api/v1/yt7phya14ic0d';
 
 const db = new sqlite3.Database('game_v2.db');
 
-// สร้างตารางและ Sync ข้อมูลจาก SheetDB เมื่อเซิร์ฟเวอร์เริ่มทำงาน
 db.serialize(() => {
     db.run(`
         CREATE TABLE IF NOT EXISTS users (
@@ -30,11 +29,8 @@ db.serialize(() => {
     });
 });
 
-// ฟังก์ชันดึงข้อมูลจาก SheetDB ลง SQLite
 async function syncDataFromSheetDB() {
-    if (SHEETDB_URL.includes('YOUR_API_KEY')) return;
     try {
-        console.log('🔄 กำลังซิงค์ข้อมูลผู้เล่นจาก SheetDB...');
         const res = await axios.get(SHEETDB_URL);
         const users = res.data;
         if (Array.isArray(users)) {
@@ -42,11 +38,16 @@ async function syncDataFromSheetDB() {
                 db.run(`INSERT OR IGNORE INTO users (username, password, country, wins, losses, draws) VALUES (?, ?, ?, ?, ?, ?)`, 
                 [u.username, u.password, u.country, Number(u.wins)||0, Number(u.losses)||0, Number(u.draws)||0]);
             });
-            console.log(`✅ ซิงค์ข้อมูลสำเร็จ! ดึงข้อมูลมาแล้ว ${users.length} บัญชี`);
         }
-    } catch (err) {
-        console.error('❌ ไม่สามารถดึงข้อมูลจาก SheetDB ได้:', err.message);
-    }
+    } catch (err) {}
+}
+
+function getRank(wins) {
+    if (wins >= 50) return { title: 'Master 👑', class: 'rank-master' };
+    if (wins >= 30) return { title: 'Diamond 💎', class: 'rank-diamond' };
+    if (wins >= 15) return { title: 'Gold 🥇', class: 'rank-gold' };
+    if (wins >= 5)  return { title: 'Silver 🥈', class: 'rank-silver' };
+    return { title: 'Bronze 🥉', class: 'rank-bronze' };
 }
 
 app.use(express.static('public'));
@@ -165,14 +166,11 @@ function startTimer(roomId) {
 
 io.on('connection', (socket) => {
 
-    // Auth: Register (บันทึกลง SQLite และส่งขึ้น SheetDB)
     socket.on('register', ({ username, password, country }) => {
         const cleanUser = (username || '').trim();
         const cleanPass = (password || '').trim();
 
-        if (!cleanUser || !cleanPass) {
-            return socket.emit('authError', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
-        }
+        if (!cleanUser || !cleanPass) return socket.emit('authError', 'กรุณากรอกข้อมูลให้ครบถ้วน');
 
         db.get('SELECT username FROM users WHERE LOWER(username) = LOWER(?)', [cleanUser], (err, row) => {
             if (err) return socket.emit('authError', 'เกิดข้อผิดพลาดของฐานข้อมูล');
@@ -182,45 +180,30 @@ io.on('connection', (socket) => {
                 if (err) {
                     socket.emit('authError', 'ไม่สามารถลงทะเบียนได้');
                 } else {
-                    // ส่งข้อมูลใหม่ไปลง SheetDB
-                    if (!SHEETDB_URL.includes('YOUR_API_KEY')) {
-                        axios.post(SHEETDB_URL, {
-                            data: {
-                                username: cleanUser,
-                                password: cleanPass,
-                                country: country,
-                                wins: 0,
-                                losses: 0,
-                                draws: 0
-                            }
-                        }).catch(e => console.log('SheetDB push error:', e.message));
-                    }
-                    socket.emit('authSuccess', { username: cleanUser, country });
+                    axios.post(SHEETDB_URL, { data: { username: cleanUser, password: cleanPass, country, wins: 0, losses: 0, draws: 0 } }).catch(()=>{});
+                    socket.emit('authSuccess', { username: cleanUser, country, wins: 0, rank: getRank(0) });
                 }
             });
         });
     });
 
-    // Auth: Login
     socket.on('login', ({ username, password }) => {
         const cleanUser = (username || '').trim();
         const cleanPass = (password || '').trim();
 
-        if (!cleanUser || !cleanPass) {
-            return socket.emit('authError', 'กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
-        }
-
         db.get('SELECT * FROM users WHERE LOWER(username) = LOWER(?) AND password = ?', [cleanUser, cleanPass], (err, user) => {
-            if (err) return socket.emit('authError', 'เกิดข้อผิดพลาดของฐานข้อมูล');
             if (user) {
-                socket.emit('authSuccess', { username: user.username, country: user.country });
+                socket.emit('authSuccess', { username: user.username, country: user.country, wins: user.wins, rank: getRank(user.wins) });
             } else {
                 socket.emit('authError', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
             }
         });
     });
 
-    // Leaderboard Data
+    socket.on('sendEmote', ({ roomId, emote }) => {
+        io.to(roomId).emit('receiveEmote', { senderId: socket.id, emote });
+    });
+
     socket.on('getLeaderboard', ({ country }) => {
         let query = 'SELECT username, country, wins, losses, draws FROM users';
         let params = [];
@@ -231,21 +214,18 @@ io.on('connection', (socket) => {
         query += ' ORDER BY wins DESC LIMIT 20';
 
         db.all(query, params, (err, rows) => {
-            socket.emit('leaderboardData', rows || []);
+            const rankedRows = (rows || []).map(r => ({ ...r, rank: getRank(r.wins) }));
+            socket.emit('leaderboardData', rankedRows);
         });
     });
 
-    // Matchmaking
     socket.on('findMatch', ({ username, difficulty, timeLimit, totalQuestions }) => {
         matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
-
         const timeLimitStr = String(timeLimit);
         const totalQNum = Number(totalQuestions);
 
         const opponentIndex = matchmakingQueue.findIndex(
-            p => p.difficulty === difficulty && 
-                 String(p.timeLimit) === timeLimitStr && 
-                 Number(p.totalQuestions) === totalQNum
+            p => p.difficulty === difficulty && String(p.timeLimit) === timeLimitStr && Number(p.totalQuestions) === totalQNum
         );
 
         if (opponentIndex !== -1) {
@@ -275,10 +255,7 @@ io.on('connection', (socket) => {
                     currentQuestion: 1,
                     totalQuestions: totalQNum,
                     problem: games[roomId].currentProblem.text,
-                    players: {
-                        [opponent.id]: opponent.username,
-                        [socket.id]: username
-                    },
+                    players: { [opponent.id]: opponent.username, [socket.id]: username },
                     scores: { [opponent.id]: 0, [socket.id]: 0 }
                 });
 
@@ -305,18 +282,12 @@ io.on('connection', (socket) => {
             player.combo += 1;
             const bonus = player.combo > 1 ? 5 : 0;
             player.score += (10 + bonus);
-
             socket.emit('correctAnswerBonus', { combo: player.combo, scoreAdded: 10 + bonus });
-
             nextRound(roomId);
         } else {
             player.combo = 0;
             socket.emit('wrongAnswer');
         }
-    });
-
-    socket.on('useSkill', ({ roomId, skillType }) => {
-        socket.to(roomId).emit('receiveAttack', { skillType });
     });
 
     socket.on('disconnect', () => {
@@ -334,3 +305,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+                                               
