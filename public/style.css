@@ -1,36 +1,109 @@
-* { box-sizing: border-box; font-family: 'Kanit', sans-serif; margin: 0; padding: 0; }
-body { background: #0f172a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-.container { width: 100%; max-width: 420px; padding: 15px; }
-.card { background: #1e293b; border-radius: 16px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; }
-.hidden { display: none; }
-input, select, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-size: 1rem; }
-input, select { background: #334155; color: #fff; }
-button { background: #3b82f6; color: #fff; font-weight: bold; cursor: pointer; transition: 0.2s; }
-button:hover { background: #2563eb; }
-.btn-sec { background: #64748b; }
-.btn-start { background: #10b981; font-size: 1.2rem; }
-.error-text { color: #ef4444; margin-top: 5px; font-size: 0.9rem; }
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
 
-/* Rank Badge Styles */
-.rank-badge { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; display: inline-block; margin-top: 5px; }
+* {
+    box-sizing: border-box;
+    font-family: 'Kanit', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #0d1117;
+    color: #e6edf3;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 440px;
+    padding: 20px;
+}
+
+.card {
+    background: rgba(22, 27, 34, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+    text-align: center;
+}
+
+.hidden { display: none; }
+
+h2, h3 { margin-bottom: 16px; color: #58a6ff; }
+
+input, select {
+    width: 100%;
+    padding: 12px 16px;
+    margin: 8px 0;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    background: #161b22;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    transition: 0.2s;
+}
+
+input:focus, select:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 12px;
+    border: none;
+    background: #238636;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+button:hover { background: #2ea043; transform: translateY(-1px); }
+
+.btn-sec { background: #21262d; border: 1px solid #30363d; }
+.btn-sec:hover { background: #30363d; }
+
+.btn-start { background: #1f6beb; }
+.btn-start:hover { background: #388bfd; }
+
+.btn-group { display: flex; gap: 10px; }
+
+.error-text { color: #f85149; font-size: 0.85rem; margin-top: 6px; }
+
+/* Rank Badges */
+.rank-badge { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; display: inline-block; }
 .rank-bronze { background: #cd7f32; color: #fff; }
 .rank-silver { background: #c0c0c0; color: #333; }
 .rank-gold { background: #ffd700; color: #333; }
-.rank-diamond { background: #00ffff; color: #000; box-shadow: 0 0 10px #00ffff; }
-.rank-master { background: linear-gradient(45deg, #ff007f, #7928ca); color: #fff; box-shadow: 0 0 12px #ff007f; }
+.rank-diamond { background: #00ffff; color: #000; box-shadow: 0 0 8px #00ffff; }
+.rank-master { background: linear-gradient(45deg, #ff007f, #7928ca); color: #fff; }
 
-/* Emote Bar & VFX */
-.emote-bar { display: flex; gap: 5px; margin: 10px 0; }
-.emote-bar button { width: auto; flex: 1; padding: 6px; font-size: 1.2rem; background: #334155; }
-.emote-pop { position: absolute; font-size: 2.5rem; animation: floatUp 1.2s forwards ease-out; pointer-events: none; }
-@keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.8); } 100% { opacity: 0; transform: translateY(-60px) scale(1.2); } }
+/* Arena Layout */
+.arena-header { display: flex; justify-content: space-between; font-weight: 600; color: #8b949e; margin-bottom: 12px; }
 
-/* Arena layout */
 #arena-area { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; position: relative; }
-.player-card { background: #334155; padding: 10px; border-radius: 10px; width: 42%; position: relative; }
-.score { font-size: 1.8rem; font-weight: bold; color: #f59e0b; }
-.problem-display { font-size: 2.5rem; font-weight: bold; margin: 15px 0; color: #38bdf8; }
-.combo-fire { color: #ff4500; font-weight: bold; font-size: 0.9rem; }
+.player-card { background: #21262d; border: 1px solid #30363d; padding: 12px; border-radius: 14px; width: 42%; position: relative; }
+.score { font-size: 2rem; font-weight: bold; color: #e3b341; }
+.vs-text { font-weight: bold; color: #f85149; font-size: 1.2rem; }
 
+.problem-display { font-size: 2.8rem; font-weight: bold; margin: 15px 0; color: #58a6ff; letter-spacing: 2px; }
+
+/* Emote Bar */
+.emote-bar { display: flex; gap: 6px; margin: 8px 0; }
+.emote-bar button { width: auto; flex: 1; padding: 6px; font-size: 1.2rem; background: #21262d; border: 1px solid #30363d; }
+.emote-pop { position: absolute; font-size: 2.5rem; animation: floatUp 1.2s forwards ease-out; pointer-events: none; }
+@keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.8); } 100% { opacity: 0; transform: translateY(-50px) scale(1.2); } }
+
+/* Screen Shake Effect */
 .shake { animation: shakeAnim 0.3s ease-in-out; }
-@keyframes shakeAnim { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+@keyframes shakeAnim { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
