@@ -10,58 +10,127 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ----------------------------------------------------
-// Google Sheets / Database Configuration (ลิงก์เดิมของนาย)
-// ----------------------------------------------------
-// ถ้าโปรเจกต์ของนายใช้ Google Apps Script Web App URL หรือ Google Sheets API สามารถใส่ตรงนี้ได้เลยครับ
-const USERS_DB_URL = process.env.USERS_DB_URL || 'https://sheetdb.io/api/v1/yt7phya14ic0d'; 
+// SheetDB URL ของนาย
+const SHEETDB_URL = process.env.SHEETDB_URL || 'https://sheetdb.io/api/v1/yt7phya14ic0d';
 
-// ตัวแปรเก็บข้อมูลสำรองชั่วคราว
-const users = []; 
-const rooms = {}; 
-let waitingPlayer = null; 
+// ฟังก์ชันดึงข้อมูลผู้ใช้ทั้งหมดจาก SheetDB
+async function fetchUsersFromSheet() {
+    try {
+        const response = await fetch(SHEETDB_URL);
+        const data = await response.json();
+        return Array.isArray(data) ? data : [];
+    } catch (err) {
+        console.error("Error fetching from SheetDB:", err);
+        return [];
+    }
+}
+
+// ฟังก์ชันเพิ่มผู้ใช้ใหม่ลง SheetDB (ตรงกับ Columns: username, password, country, wins, losses, draws)
+async function addUserToSheet(userData) {
+    try {
+        await fetch(SHEETDB_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                data: [{
+                    username: userData.username,
+                    password: userData.password,
+                    country: userData.country || 'TH',
+                    wins: 0,
+                    losses: 0,
+                    draws: 0
+                }] 
+            })
+        });
+    } catch (err) {
+        console.error("Error adding user to SheetDB:", err);
+    }
+}
+
+// ฟังก์ชันอัปเดตสถิติหลังจบเกม (wins, losses, draws) ใน SheetDB
+async function updatePlayerStatsInSheet(username, result) {
+    try {
+        const users = await fetchUsersFromSheet();
+        const user = users.find(u => u.username === username);
+        if (!user) return;
+
+        let wins = Number(user.wins || 0);
+        let losses = Number(user.losses || 0);
+        let draws = Number(user.draws || 0);
+
+        if (result === 'win') wins++;
+        else if (result === 'loss') losses++;
+        else if (result === 'draw') draws++;
+
+        await fetch(`${SHEETDB_URL}/username/${username}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                data: { wins, losses, draws }
+            })
+        });
+    } catch (err) {
+        console.error("Error updating stats in SheetDB:", err);
+    }
+}
 
 // ----------------------------------------------------
-// API: สมัครสมาชิก / เข้าสู่ระบบ / ตารางอันดับ
+// API Routes
 // ----------------------------------------------------
-app.post('/api/register', (req, res) => {
+app.post('/api/register', async (req, res) => {
     const { username, password, country } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'กรอกข้อมูลไม่ครบ' });
     
+    const users = await fetchUsersFromSheet();
     const existing = users.find(u => u.username === username);
     if (existing) return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' });
 
-    const newUser = { username, password, country: country || 'TH', wins: 0, total_games: 0 };
-    users.push(newUser);
+    const newUser = { username, password, country: country || 'TH', wins: 0, losses: 0, draws: 0 };
+    await addUserToSheet(newUser);
     res.json({ success: true, user: newUser });
 });
 
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
+    const users = await fetchUsersFromSheet();
     const user = users.find(u => u.username === username && u.password === password);
     if (!user) return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+    
+    // แปลงค่าตัวเลขให้ถูกต้องก่อนส่งกลับ
+    user.wins = Number(user.wins || 0);
+    user.losses = Number(user.losses || 0);
+    user.draws = Number(user.draws || 0);
+
     res.json({ success: true, user });
 });
 
-app.get('/api/leaderboard', (req, res) => {
+app.get('/api/leaderboard', async (req, res) => {
     const countryFilter = req.query.country;
-    let list = [...users];
+    let list = await fetchUsersFromSheet();
+    
     if (countryFilter && countryFilter !== 'ALL') {
         list = list.filter(u => u.country === countryFilter);
     }
-    // เรียงตามจำนวนชนะ จากมากไปน้อย
+    
+    // แปลงค่าเป็นตัวเลขเพื่อใช้คำนวนและเรียงลำดับ
+    list.forEach(u => {
+        u.wins = Number(u.wins || 0);
+        u.losses = Number(u.losses || 0);
+        u.draws = Number(u.draws || 0);
+    });
+
+    // เรียงตาม wins มากไปน้อย
     list.sort((a, b) => b.wins - a.wins);
     res.json(list);
 });
 
 // ----------------------------------------------------
-// ฟังก์ชันสร้างโจทย์เลขตามความยาก
+// Math Question Generator
 // ----------------------------------------------------
 function generateQuestion(diff) {
     let num1 = Math.floor(Math.random() * 20) + 1;
     let num2 = Math.floor(Math.random() * 20) + 1;
     let op = '+';
-    let text = '';
     let correctAnswer = 0;
 
     if (diff === 'easy') {
@@ -94,13 +163,16 @@ function generateQuestion(diff) {
         }
     }
 
-    text = `${num1} ${op === '*' ? '×' : (op === '/' ? '÷' : op)} ${num2} = ?`;
+    const text = `${num1} ${op === '*' ? '×' : (op === '/' ? '÷' : op)} ${num2} = ?`;
     return { text, correctAnswer };
 }
 
 // ----------------------------------------------------
 // Socket.io Real-time Game Logic
 // ----------------------------------------------------
+const rooms = {}; 
+let waitingPlayer = null; 
+
 io.on('connection', (socket) => {
     
     socket.on('findMatch', ({ user, config }) => {
@@ -187,15 +259,12 @@ io.on('connection', (socket) => {
             else if (room.scores[1] > room.scores[0]) winnerIdx = 1;
 
             if (winnerIdx !== -1) {
-                const winnerObj = users.find(u => u.username === room.players[winnerIdx].username);
-                const loserObj = users.find(u => u.username === room.players[winnerIdx === 0 ? 1 : 0].username);
-                if (winnerObj) { winnerObj.wins++; winnerObj.total_games++; }
-                if (loserObj) { loserObj.total_games++; }
+                const winnerUser = room.players[winnerIdx].username;
+                const loserUser = room.players[winnerIdx === 0 ? 1 : 0].username;
+                updatePlayerStatsInSheet(winnerUser, 'win');
+                updatePlayerStatsInSheet(loserUser, 'loss');
             } else {
-                room.players.forEach(p => {
-                    const uObj = users.find(u => u.username === p.username);
-                    if (uObj) uObj.total_games++;
-                });
+                room.players.forEach(p => updatePlayerStatsInSheet(p.username, 'draw'));
             }
 
             io.to(roomId).emit('gameOver', { scores: room.scores });
@@ -212,11 +281,10 @@ io.on('connection', (socket) => {
 
         const winnerIdx = pIndex === 0 ? 1 : 0;
         const surrenderingUser = room.players[pIndex].username;
+        const winnerUser = room.players[winnerIdx].username;
 
-        const winnerObj = users.find(u => u.username === room.players[winnerIdx].username);
-        const loserObj = users.find(u => u.username === surrenderingUser);
-        if (winnerObj) { winnerObj.wins++; winnerObj.total_games++; }
-        if (loserObj) { loserObj.total_games++; }
+        updatePlayerStatsInSheet(winnerUser, 'win');
+        updatePlayerStatsInSheet(surrenderingUser, 'loss');
 
         io.to(roomId).emit('gameOver', {
             surrenderedBy: surrenderingUser,
@@ -239,4 +307,3 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-              
