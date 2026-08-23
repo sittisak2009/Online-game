@@ -31,7 +31,7 @@
             <div class="form-group hidden" id="country-group">
                 <label>ประเทศ</label>
                 <select id="auth-country">
-                    <option value="All">🌐 Global</option>
+                    <option value="OT">🌐 Other</option>
                     <option value="TH">🇹🇭 ไทย</option>
                     <option value="US">🇺🇸 สหรัฐอเมริกา</option>
                     <option value="GB">🇬🇧 สหราชอาณาจักร</option>
@@ -156,11 +156,15 @@
 
             <div id="problem-text" style="font-size: 2.5rem; font-weight: 800; color: #00d2ff; margin: 15px 0;">? + ?</div>
             <input type="number" id="answer-input" placeholder="พิมพ์คำตอบแล้วกด Enter" autofocus>
-            <button onclick="submitAnswer()" class="btn-primary" style="margin-top: 10px;">ตอบ!</button>
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button onclick="submitAnswer()" class="btn-primary" style="flex: 2;">ตอบ!</button>
+                <button onclick="surrenderGame()" style="flex: 1; background: rgba(255, 65, 108, 0.2); color: #ff416c; border: 1px solid #ff416c; border-radius: 8px; font-weight: bold; cursor: pointer;">🏳️ ยอมแพ้</button>
+            </div>
         </div>
     </div>
 
-    <!-- Custom Modal Popup (ตั้งค่าซ่อนไว้ตั้งแต่แรกด้วย display: none) -->
+    <!-- Custom Modal Popup -->
     <div id="modal-box" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
         <div class="card" style="max-width: 320px; width: 85%; text-align: center; border: 2px solid #00d2ff; box-shadow: 0 0 20px rgba(0, 210, 255, 0.4);">
             <div id="modal-icon" style="font-size: 3rem; margin-bottom: 10px;">🏆</div>
@@ -173,4 +177,5 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="script.js"></script>
 </body>
-</html>
+                    </html>
+    
