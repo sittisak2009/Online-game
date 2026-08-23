@@ -139,8 +139,31 @@ io.on('connection', (socket) => {
         waitingQueue = waitingQueue.filter(p => p.socketId !== socket.id);
     });
 
+    // ⚡ ระบบตรวจเช็กการเชื่อมต่อหลุด (Disconnect)
     socket.on('disconnect', () => {
+        // 1. ลบออกจากคิวรอแข่ง (กรณีหลุดตอนกำลังค้นหาห้อง)
         waitingQueue = waitingQueue.filter(p => p.socketId !== socket.id);
+
+        // 2. เช็กว่าอยู่ในห้องแข่งที่กำลังเล่นอยู่หรือไม่
+        for (const roomId in rooms) {
+            const room = rooms[roomId];
+            const playerIndex = room.players.findIndex(p => p.socketId === socket.id);
+
+            if (playerIndex !== -1) {
+                // ล้าง Timer ของห้อง
+                if (room.timer) clearTimeout(room.timer);
+
+                // แจ้งเตือนผู้เล่นอีกคนที่ยังอยู่ในห้อง
+                io.to(roomId).emit('gameOver', {
+                    scores: room.scores,
+                    message: 'คู่ต่อสู้ออกจากเกมแล้ว คุณเป็นฝ่ายชนะ!'
+                });
+
+                // ลบห้องแข่งออกจากระบบ
+                delete rooms[roomId];
+                break;
+            }
+        }
     });
 });
 
@@ -148,7 +171,6 @@ function sendNextQuestion(roomId) {
     const room = rooms[roomId];
     if (!room) return;
 
-    // ล้างตัวนับเวลาเก่าออกก่อน
     if (room.timer) clearTimeout(room.timer);
 
     if (room.currentQ >= room.totalQ) {
@@ -185,7 +207,6 @@ function sendNextQuestion(roomId) {
         timeLimit: room.timeLimit
     });
 
-    // ถ้าตั้งเวลานับถอยหลังไว้ ให้สั่งข้ามข้ออัตโนมัติเมื่อหมดเวลา
     if (room.timeLimit && room.timeLimit !== 'unlimited') {
         const timeoutMs = (parseInt(room.timeLimit) + 1) * 1000;
         room.timer = setTimeout(() => {
