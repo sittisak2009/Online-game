@@ -8,65 +8,117 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-let matchmakingQueue = []; // คิวสำหรับเก็บคนที่กดค้นหาห้อง
+let matchmakingQueue = [];
 const games = {};
 
-function generateProblem() {
-    const num1 = Math.floor(Math.random() * 20) + 1;
-    const num2 = Math.floor(Math.random() * 20) + 1;
-    const isAddition = Math.random() > 0.5;
-    return {
-        text: isAddition ? `${num1} + ${num2}` : `${Math.max(num1, num2)} - ${Math.min(num1, num2)}`,
-        answer: isAddition ? num1 + num2 : Math.abs(num1 - num2)
-    };
+// สุ่มโจทย์ตามระดับความยาก
+function generateProblem(difficulty) {
+    let num1, num2, isAdd, answer, text;
+    
+    if (difficulty === 'easy') {
+        num1 = Math.floor(Math.random() * 20) + 1;
+        num2 = Math.floor(Math.random() * 20) + 1;
+        isAdd = Math.random() > 0.5;
+        text = isAdd ? `${num1} + ${num2}` : `${Math.max(num1, num2)} - ${Math.min(num1, num2)}`;
+        answer = isAdd ? num1 + num2 : Math.abs(num1 - num2);
+    } else if (difficulty === 'medium') {
+        const type = Math.floor(Math.random() * 3);
+        num1 = Math.floor(Math.random() * 30) + 2;
+        num2 = Math.floor(Math.random() * 12) + 2;
+        if (type === 0) { text = `${num1} + ${num2}`; answer = num1 + num2; }
+        else if (type === 1) { text = `${Math.max(num1, num2)} - ${Math.min(num1, num2)}`; answer = Math.abs(num1 - num2); }
+        else { text = `${num1} × ${num2}`; answer = num1 * num2; }
+    } else { // hard
+        const type = Math.floor(Math.random() * 2);
+        if (type === 0) {
+            num1 = Math.floor(Math.random() * 50) + 10;
+            num2 = Math.floor(Math.random() * 20) + 2;
+            text = `${num1} × ${num2}`;
+            answer = num1 * num2;
+        } else {
+            num2 = Math.floor(Math.random() * 12) + 2;
+            answer = Math.floor(Math.random() * 20) + 2;
+            num1 = num2 * answer;
+            text = `${num1} ÷ ${num2}`;
+        }
+    }
+    return { text, answer };
+}
+
+// ระบบจัดการเวลา
+function startTimer(roomId) {
+    const game = games[roomId];
+    if (!game) return;
+
+    if (game.timer) clearInterval(game.timer);
+
+    game.timeLeft = game.timeLimit;
+    io.to(roomId).emit('timerUpdate', { timeLeft: game.timeLeft, maxTime: game.timeLimit });
+
+    game.timer = setInterval(() => {
+        game.timeLeft -= 1;
+        io.to(roomId).emit('timerUpdate', { timeLeft: game.timeLeft, maxTime: game.timeLimit });
+
+        if (game.timeLeft <= 0) {
+            // หมดเวลาโดยไม่มีคนตอบถูก -> สุ่มโจทย์ใหม่
+            game.currentProblem = generateProblem(game.difficulty);
+            io.to(roomId).emit('nextProblem', {
+                problem: game.currentProblem.text,
+                scores: { [game.p1.id]: game.p1.score, [game.p2.id]: game.p2.score }
+            });
+            startTimer(roomId);
+        }
+    }, 1000);
 }
 
 io.on('connection', (socket) => {
 
-    // เมื่อผู้เล่นกดปุ่ม "หาห้อง"
-    socket.on('findMatch', () => {
-        // หากอยู่ในคิวแล้ว ไม่ต้องใส่ซ้ำ
-        if (matchmakingQueue.includes(socket.id)) return;
+    socket.on('findMatch', ({ difficulty, timeLimit }) => {
+        // ค้นหาผู้เล่นในคิวที่มีเงื่อนไขตรงกันทั้งความยากและเวลา
+        const opponentIndex = matchmakingQueue.findIndex(
+            p => p.difficulty === difficulty && p.timeLimit === timeLimit && p.id !== socket.id
+        );
 
-        matchmakingQueue.push(socket.id);
-
-        // ถ้ามีคนรอในคิวอย่างน้อย 2 คน ให้จับคู่ทันที
-        if (matchmakingQueue.length >= 2) {
-            const p1Id = matchmakingQueue.shift();
-            const p2Id = matchmakingQueue.shift();
-
-            const p1Socket = io.sockets.sockets.get(p1Id);
-            const p2Socket = io.sockets.sockets.get(p2Id);
+        if (opponentIndex !== -1) {
+            const opponent = matchmakingQueue.splice(opponentIndex, 1)[0];
+            const p1Socket = io.sockets.sockets.get(opponent.id);
+            const p2Socket = socket;
 
             if (p1Socket && p2Socket) {
-                const roomId = `room_${p1Id}_${p2Id}`;
+                const roomId = `room_${opponent.id}_${socket.id}`;
                 p1Socket.join(roomId);
                 p2Socket.join(roomId);
 
                 games[roomId] = {
-                    p1: { id: p1Id, score: 0 },
-                    p2: { id: p2Id, score: 0 },
-                    currentProblem: generateProblem()
+                    p1: { id: opponent.id, score: 0 },
+                    p2: { id: socket.id, score: 0 },
+                    difficulty: difficulty,
+                    timeLimit: parseInt(timeLimit),
+                    timeLeft: parseInt(timeLimit),
+                    currentProblem: generateProblem(difficulty),
+                    timer: null
                 };
 
                 io.to(roomId).emit('gameStart', {
                     roomId: roomId,
                     problem: games[roomId].currentProblem.text,
-                    scores: { [p1Id]: 0, [p2Id]: 0 }
+                    scores: { [opponent.id]: 0, [socket.id]: 0 }
                 });
+
+                startTimer(roomId);
             }
         } else {
-            socket.emit('waiting', 'กำลังรอผู้เล่นอื่นกดเข้าร่วม...');
+            matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
+            matchmakingQueue.push({ id: socket.id, difficulty, timeLimit: parseInt(timeLimit) });
+            socket.emit('waiting', 'กำลังหาคู่แข่งที่เลือกเงื่อนไขเดียวกัน...');
         }
     });
 
-    // ยกเลิกการหาห้อง
     socket.on('cancelMatch', () => {
-        matchmakingQueue = matchmakingQueue.filter(id => id !== socket.id);
+        matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
         socket.emit('matchCancelled');
     });
 
-    // ตรวจคำตอบ
     socket.on('submitAnswer', ({ roomId, answer }) => {
         const game = games[roomId];
         if (!game) return;
@@ -79,6 +131,7 @@ io.on('connection', (socket) => {
             const p2Score = game.p2.score;
 
             if (p1Score >= 50 || p2Score >= 50) {
+                clearInterval(game.timer);
                 const winnerId = p1Score >= 50 ? game.p1.id : game.p2.id;
                 io.to(roomId).emit('gameOver', { 
                     winnerId: winnerId, 
@@ -86,11 +139,12 @@ io.on('connection', (socket) => {
                 });
                 delete games[roomId];
             } else {
-                game.currentProblem = generateProblem();
+                game.currentProblem = generateProblem(game.difficulty);
                 io.to(roomId).emit('nextProblem', {
                     problem: game.currentProblem.text,
                     scores: { [game.p1.id]: p1Score, [game.p2.id]: p2Score }
                 });
+                startTimer(roomId);
             }
         } else {
             socket.emit('wrongAnswer');
@@ -98,9 +152,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        matchmakingQueue = matchmakingQueue.filter(id => id !== socket.id);
+        matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
         for (const roomId in games) {
             if (games[roomId].p1.id === socket.id || games[roomId].p2.id === socket.id) {
+                if (games[roomId].timer) clearInterval(games[roomId].timer);
                 io.to(roomId).emit('playerLeft');
                 delete games[roomId];
                 break;
@@ -111,4 +166,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-                        
+                         
