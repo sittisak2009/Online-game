@@ -7,7 +7,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Database Setup (SQLite3)
 const db = new sqlite3.Database('game.db');
 
 db.serialize(() => {
@@ -103,6 +102,7 @@ function nextRound(roomId) {
     game.currentQuestion += 1;
     game.currentProblem = generateProblem(game.difficulty);
 
+    // Reset combos if needed
     io.to(roomId).emit('nextProblem', {
         currentQuestion: game.currentQuestion,
         totalQuestions: game.totalQuestions,
@@ -140,7 +140,6 @@ function startTimer(roomId) {
 
 io.on('connection', (socket) => {
 
-    // Auth: Register
     socket.on('register', ({ username, password, country }) => {
         db.run('INSERT INTO users (username, password, country) VALUES (?, ?, ?)', [username, password, country], function(err) {
             if (err) {
@@ -151,7 +150,6 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Auth: Login
     socket.on('login', ({ username, password }) => {
         db.get('SELECT * FROM users WHERE username = ? AND password = ?', [username, password], (err, user) => {
             if (user) {
@@ -162,7 +160,6 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Leaderboard Data
     socket.on('getLeaderboard', ({ country }) => {
         let query = 'SELECT username, country, wins, losses, draws FROM users';
         let params = [];
@@ -177,7 +174,6 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Matchmaking
     socket.on('findMatch', ({ username, difficulty, timeLimit, totalQuestions }) => {
         matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
 
@@ -201,8 +197,8 @@ io.on('connection', (socket) => {
                 p2Socket.join(roomId);
 
                 games[roomId] = {
-                    p1: { id: opponent.id, username: opponent.username, score: 0 },
-                    p2: { id: socket.id, username: username, score: 0 },
+                    p1: { id: opponent.id, username: opponent.username, score: 0, combo: 0 },
+                    p2: { id: socket.id, username: username, score: 0, combo: 0 },
                     difficulty: difficulty,
                     timeLimit: timeLimitStr,
                     totalQuestions: totalQNum,
@@ -228,7 +224,7 @@ io.on('connection', (socket) => {
             }
         } else {
             matchmakingQueue.push({ id: socket.id, username, difficulty, timeLimit: timeLimitStr, totalQuestions: totalQNum });
-            socket.emit('waiting', 'กำลังรอผู้เล่นอื่นที่เลือกเงื่อนไขเดียวกัน...');
+            socket.emit('waiting', 'กำลังรอคู่ต่อสู้สายสปีดมาท้าดวล...');
         }
     });
 
@@ -241,14 +237,25 @@ io.on('connection', (socket) => {
         const game = games[roomId];
         if (!game) return;
 
+        const player = socket.id === game.p1.id ? game.p1 : game.p2;
+
         if (parseInt(answer) === game.currentProblem.answer) {
-            if (socket.id === game.p1.id) game.p1.score += 10;
-            if (socket.id === game.p2.id) game.p2.score += 10;
+            player.combo += 1;
+            const bonus = player.combo > 1 ? 5 : 0;
+            player.score += (10 + bonus);
+
+            socket.emit('correctAnswerBonus', { combo: player.combo, scoreAdded: 10 + bonus });
 
             nextRound(roomId);
         } else {
+            player.combo = 0;
             socket.emit('wrongAnswer');
         }
+    });
+
+    // Handle Attack Skill Event
+    socket.on('useSkill', ({ roomId, skillType }) => {
+        socket.to(roomId).emit('receiveAttack', { skillType });
     });
 
     socket.on('disconnect', () => {
@@ -266,3 +273,4 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+            
