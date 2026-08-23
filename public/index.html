@@ -3,23 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Battle Online Speed Run</title>
+    <title>Math Battle Online</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <!-- Auth Box -->
         <div id="auth-box" class="card">
-            <h2>🔐 เข้าสู่ระบบ / สมัครสมาชิก</h2>
+            <h2>🔐 เข้าสู่ระบบ</h2>
             <input type="text" id="auth-username" placeholder="ชื่อผู้ใช้">
             <input type="password" id="auth-password" placeholder="รหัสผ่าน">
             <select id="auth-country">
                 <option value="TH">🇹🇭 ไทย</option>
-                <option value="LA">🇱🇦 ลาว</option>
-                <option value="VN">🇻🇳 เวียดนาม</option>
-                <option value="KH">🇰🇭 กัมพูชา</option>
-                <option value="MM">🇲🇲 เมียนมา</option>
-                <option value="MY">🇲🇾 มาเลเซีย</option>
+                <option value="UK">🇬🇧 สหราชอาณาจักร</option>
+                <option value="US">🇺🇸 สหรัฐอเมริกา</option>
+                <option value="GB">🌐 Global</option>
             </select>
             <div class="btn-group">
                 <button onclick="login()">เข้าสู่ระบบ</button>
@@ -30,12 +28,12 @@
 
         <!-- Lobby Box -->
         <div id="lobby-box" class="card hidden">
-            <div class="user-profile">
+            <div style="margin-bottom: 12px;">
                 <h3>สวัสดีคุณ <span id="display-user"></span></h3>
                 <span id="display-rank" class="rank-badge">Bronze 🥉</span>
             </div>
 
-            <div class="game-options">
+            <div style="text-align: left;">
                 <label>ระดับความยาก:</label>
                 <select id="diff-select">
                     <option value="easy">ง่าย (บวก/ลบ ไม่เกิน 20)</option>
@@ -61,25 +59,25 @@
 
             <button onclick="findMatch()" class="btn-start">🔍 ค้นหาคู่ดวล</button>
             <button onclick="getLeaderboard()" class="btn-sec">🏆 ตารางอันดับ</button>
-            <p id="status-text"></p>
+            <p id="status-text" style="margin-top: 8px; color: #8b949e;"></p>
         </div>
 
         <!-- Game Arena -->
         <div id="game-box" class="card hidden">
             <div class="arena-header">
-                <div>ข้อที่: <span id="q-num">1</span>/<span id="q-total">10</span></div>
-                <div id="timer-display">⏱️ เวลา: <span id="time-left">10</span>s</div>
+                <div>ข้อที่ <span id="q-num">1</span>/<span id="q-total">10</span></div>
+                <div>⏱️ <span id="time-left">10</span>s</div>
             </div>
 
             <div id="arena-area">
                 <div class="player-card" id="my-area">
-                    <span id="p1-name">คุณ</span>
+                    <div id="p1-name" style="font-size: 0.9rem; color: #8b949e;">คุณ</div>
                     <div class="score" id="p1-score">0</div>
-                    <div id="my-combo" class="combo-fire"></div>
+                    <div id="my-combo" style="color: #ff7b72; font-weight: bold; font-size: 0.8rem;"></div>
                 </div>
                 <div class="vs-text">VS</div>
                 <div class="player-card" id="enemy-area">
-                    <span id="p2-name">คู่ต่อสู้</span>
+                    <div id="p2-name" style="font-size: 0.9rem; color: #8b949e;">คู่ต่อสู้</div>
                     <div class="score" id="p2-score">0</div>
                 </div>
             </div>
@@ -93,14 +91,14 @@
             </div>
 
             <div class="problem-display" id="problem-text">? + ?</div>
-            <input type="number" id="answer-input" placeholder="คำตอบ" autofocus>
-            <button onclick="submitAnswer()" class="btn-send">ตอบ!</button>
+            <input type="number" id="answer-input" placeholder="พิมพ์คำตอบแล้วกด Enter" autofocus>
+            <button onclick="submitAnswer()" class="btn-start">ตอบ</button>
         </div>
 
         <!-- Leaderboard Box -->
         <div id="lb-box" class="card hidden">
-            <h2>🏆 ตารางอันดับโลก</h2>
-            <div id="lb-list"></div>
+            <h2>🏆 ตารางอันดับ</h2>
+            <div id="lb-list" style="margin: 15px 0;"></div>
             <button onclick="backToLobby()" class="btn-sec">กลับหน้าหลัก</button>
         </div>
     </div>
