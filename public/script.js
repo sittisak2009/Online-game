@@ -1,232 +1,192 @@
 const socket = io();
 
-let currentTab = 'login';
-let currentUser = null;
-let currentRoom = null;
-let myIndex = null;
-let timerInterval = null;
+let currentRoomId = null;
+let isMyTurn = true;
 
-// ฟังก์ชันเปิด-ปิด Custom Modal
-function showModal(title, msg, icon = '🏆') {
-    document.getElementById('modal-title').innerText = title;
-    document.getElementById('modal-msg').innerText = msg;
-    document.getElementById('modal-icon').innerText = icon;
-    
-    const modalBox = document.getElementById('modal-box');
-    modalBox.style.display = 'flex';
+function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.style.display = 'none';
+    });
+    const target = document.getElementById(screenId);
+    if (target) target.style.display = 'block';
 }
 
-function closeModal() {
-    const modalBox = document.getElementById('modal-box');
-    modalBox.style.display = 'none';
+async function handleLogin(event) {
+    if (event) event.preventDefault();
+    const username = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+
+    try {
+        const res = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            alert('เข้าสู่ระบบสำเร็จ!');
+            showScreen('mainMenuScreen');
+            loadLeaderboard();
+        } else {
+            alert(data.message || 'เข้าสู่ระบบไม่สำเร็จ');
+        }
+    } catch (err) {
+        console.error("Login error:", err);
+    }
 }
 
-function switchTab(tab) {
-    currentTab = tab;
-    document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
-    document.getElementById('tab-reg-btn').classList.toggle('active', tab === 'reg');
-    document.getElementById('country-group').classList.toggle('hidden', tab === 'login');
-    document.getElementById('auth-submit-btn').innerText = tab === 'login' ? 'เข้าสู่สนามรบ 🚀' : 'สมัครสมาชิก & ลุยเลย! 🚀';
-    document.getElementById('auth-error').innerText = '';
+async function handleRegister(event) {
+    if (event) event.preventDefault();
+    const username = document.getElementById('regUsername').value;
+    const password = document.getElementById('regPassword').value;
+    const country = document.getElementById('regCountry') ? document.getElementById('regCountry').value : 'TH';
+
+    try {
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, country })
+        });
+        const data = await res.json();
+        if (data.success) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            alert('สมัครสมาชิกสำเร็จ!');
+            showScreen('mainMenuScreen');
+            loadLeaderboard();
+        } else {
+            alert(data.message || 'สมัครสมาชิกไม่สำเร็จ');
+        }
+    } catch (err) {
+        console.error("Register error:", err);
+    }
 }
 
-async function handleAuthSubmit() {
-    const username = document.getElementById('auth-username').value.trim();
-    const password = document.getElementById('auth-password').value.trim();
-    const country = document.getElementById('auth-country').value;
-    const errorMsg = document.getElementById('auth-error');
+async function loadLeaderboard() {
+    try {
+        const countrySelect = document.getElementById('countryFilter');
+        const country = countrySelect ? countrySelect.value : 'ALL';
+        
+        const response = await fetch(`/api/leaderboard?country=${country}`);
+        const data = await response.json();
+        
+        const leaderboardTableBody = document.getElementById('leaderboardBody');
+        if (!leaderboardTableBody) return;
 
-    if (!username || !password) {
-        errorMsg.innerText = 'กรุณากรอกข้อมูลให้ครบ';
+        leaderboardTableBody.innerHTML = '';
+
+        data.forEach((player, index) => {
+            const wins = Number(player.wins || 0);
+            const losses = Number(player.losses || 0);
+            const draws = Number(player.draws || 0);
+            const totalGames = wins + losses + draws;
+
+            let winRate = 0;
+            if (totalGames > 0) {
+                winRate = ((wins / totalGames) * 100).toFixed(1);
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>#${index + 1}</td>
+                <td>${player.username}</td>
+                <td>${player.country || 'TH'}</td>
+                <td>${wins}</td>
+                <td>${losses}</td>
+                <td>${draws}</td>
+                <td>${totalGames}</td>
+                <td style="color: #4CAF50; font-weight: bold;">${winRate}%</td>
+            `;
+            leaderboardTableBody.appendChild(row);
+        });
+
+    } catch (err) {
+        console.error("Error loading leaderboard:", err);
+    }
+}
+
+function startMatchmaking() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user) {
+        alert('กรุณาเข้าสู่ระบบก่อน!');
+        showScreen('loginScreen');
         return;
     }
 
-    const endpoint = currentTab === 'login' ? '/api/login' : '/api/register';
-    const payload = currentTab === 'login' ? { username, password } : { username, password, country };
+    const diff = document.getElementById('diffSelect').value;
+    const questions = document.getElementById('qCountSelect').value;
+    const time = document.getElementById('timeSelect').value;
 
-    try {
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
+    const config = { diff, questions, time };
 
-        if (res.ok && data.success) {
-            currentUser = data.user;
-            document.getElementById('display-user').innerText = currentUser.username;
-            document.getElementById('display-country').innerText = currentUser.country || 'TH';
-            document.getElementById('lb-user-name').innerText = currentUser.username;
-            
-            document.getElementById('auth-box').classList.add('hidden');
-            document.getElementById('lobby-box').classList.remove('hidden');
-        } else {
-            errorMsg.innerText = data.message || 'เกิดข้อผิดพลาด';
-        }
-    } catch (err) {
-        errorMsg.innerText = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
-    }
+    showScreen('waitingScreen');
+    socket.emit('findMatch', { user, config });
 }
 
-function findMatch() {
-    const diff = document.getElementById('diff-select').value;
-    const time = document.getElementById('time-select').value;
-    const questions = document.getElementById('q-select').value;
-
-    document.getElementById('queue-info').innerText = `โหมด: ${diff} | เวลา: ${time === 'unlimited' ? 'ไม่จำกัด' : time + 's'} | ${questions} ข้อ`;
-    document.getElementById('queue-box').classList.remove('hidden');
-
-    socket.emit('findMatch', {
-        user: currentUser,
-        config: { diff, time, questions }
-    });
-}
-
-function cancelMatch() {
+function cancelMatchmaking() {
     socket.emit('cancelMatch');
-    document.getElementById('queue-box').classList.add('hidden');
+    showScreen('mainMenuScreen');
+}
+
+function submitPlayerAnswer() {
+    const answerInput = document.getElementById('answerInput');
+    if (!answerInput) return;
+    const answer = answerInput.value;
+    if (answer === '') return;
+
+    socket.emit('submitAnswer', { roomId: currentRoomId, answer: Number(answer) });
+    answerInput.value = '';
 }
 
 function surrenderGame() {
-    if (!currentRoom) return;
-    if (confirm('คุณต้องการยอมแพ้และออกจากเกมหรือไม่?')) {
-        socket.emit('surrender', { roomId: currentRoom });
+    if (confirm('คุณต้องการยอมแพ้ใช่หรือไม่?')) {
+        socket.emit('surrender', { roomId: currentRoomId });
     }
 }
 
-async function getLeaderboard() {
-    const filter = document.getElementById('lb-country-filter').value;
-    const tbody = document.getElementById('lb-list-body');
-    
-    document.getElementById('lobby-box').classList.add('hidden');
-    document.getElementById('lb-box').classList.remove('hidden');
-
-    tbody.innerHTML = '<tr><td colspan="5" style="color: #00d2ff;">กำลังโหลดข้อมูล...</td></tr>';
-
-    try {
-        const res = await fetch(`/api/leaderboard?country=${filter}&timestamp=${Date.now()}`);
-        const list = await res.json();
-        
-        tbody.innerHTML = '';
-
-        if (!list || list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5">ยังไม่มีข้อมูลอันดับ</td></tr>';
-            return;
-        }
-
-        list.forEach((item, index) => {
-            const name = item.username || item.Name || item.User || 'ไม่ระบุชื่อ';
-            const country = item.country || 'TH';
-            const wins = Number(item.wins) || 0;
-            const total = Number(item.total_games) || 0;
-            const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
-            const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : '');
-            
-            tbody.innerHTML += `
-                <tr class="${rankClass}">
-                    <td>${index + 1}</td>
-                    <td style="text-align: left;">${name}</td>
-                    <td>${country}</td>
-                    <td>${wins}</td>
-                    <td>${winRate}%</td>
-                </tr>
-            `;
-        });
-    } catch (err) {
-        console.error(err);
-        tbody.innerHTML = '<tr><td colspan="5" style="color: #ff416c;">โหลดข้อมูลไม่สำเร็จ</td></tr>';
-    }
-}
-
-function backToLobby() {
-    document.getElementById('lb-box').classList.add('hidden');
-    document.getElementById('lobby-box').classList.remove('hidden');
-}
-
-// Socket Events
 socket.on('matchFound', (data) => {
-    currentRoom = data.roomId;
-    myIndex = data.players.findIndex(p => p.username === currentUser.username);
-    const enemyIndex = myIndex === 0 ? 1 : 0;
-
-    document.getElementById('p1-name').innerText = currentUser.username;
-    document.getElementById('p2-name').innerText = data.players[enemyIndex].username;
-
-    document.getElementById('queue-box').classList.add('hidden');
-    document.getElementById('lobby-box').classList.add('hidden');
-    document.getElementById('game-box').classList.remove('hidden');
+    currentRoomId = data.roomId;
+    showScreen('gameScreen');
+    
+    const p1Name = document.getElementById('p1Name');
+    const p2Name = document.getElementById('p2Name');
+    if (p1Name && data.players[0]) p1Name.innerText = data.players[0].username;
+    if (p2Name && data.players[1]) p2Name.innerText = data.players[1].username;
 });
 
 socket.on('newQuestion', (data) => {
-    document.getElementById('q-num').innerText = data.qIndex;
-    document.getElementById('q-total').innerText = data.totalQ;
-    document.getElementById('problem-text').innerText = data.question;
-    document.getElementById('answer-input').value = '';
-    document.getElementById('answer-input').focus();
-    startTimer(data.timeLimit);
+    const qText = document.getElementById('questionText');
+    const qCounter = document.getElementById('questionCounter');
+    
+    if (qText) qText.innerText = data.question;
+    if (qCounter) qCounter.innerText = `ข้อที่ ${data.qIndex} / ${data.totalQ}`;
 });
 
 socket.on('updateScore', (scores) => {
-    document.getElementById('p1-score').innerText = scores[myIndex];
-    document.getElementById('p2-score').innerText = scores[myIndex === 0 ? 1 : 0];
+    const p1Score = document.getElementById('p1Score');
+    const p2Score = document.getElementById('p2Score');
+    if (p1Score) p1Score.innerText = scores[0];
+    if (p2Score) p2Score.innerText = scores[1];
+});
+
+socket.on('wrongAnswer', (data) => {
+    alert(data.message);
 });
 
 socket.on('gameOver', (data) => {
-    clearInterval(timerInterval);
-    
-    if (data.surrenderedBy) {
-        if (data.surrenderedBy === currentUser.username) {
-            showModal('ยอมแพ้ 🏳️', 'คุณได้ยอมแพ้และออกจากเกมเรียบร้อยแล้ว', '🏳️');
-        } else {
-            showModal('ชนะบาย! 🎉', `คู่ต่อสู้ (${data.surrenderedBy}) ยอมแพ้แล้ว! คุณเป็นฝ่ายชนะ!`, '👑');
-        }
-    } else if (data.message) {
-        showModal('ชนะบาย! 🎉', data.message, '👑');
+    alert('เกมจบแล้ว!');
+    showScreen('mainMenuScreen');
+    loadLeaderboard();
+    currentRoomId = null;
+});
+
+window.onload = () => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+        showScreen('mainMenuScreen');
+        loadLeaderboard();
     } else {
-        showModal('จบการแข่งขัน! 🏁', `คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`, '⚔️');
+        showScreen('loginScreen');
     }
+};
     
-    currentRoom = null;
-    document.getElementById('game-box').classList.add('hidden');
-    document.getElementById('lobby-box').classList.remove('hidden');
-});
-
-function submitAnswer() {
-    const ans = document.getElementById('answer-input').value;
-    if (ans === '') return;
-    socket.emit('submitAnswer', { roomId: currentRoom, answer: Number(ans) });
-    document.getElementById('answer-input').value = '';
-}
-
-document.getElementById('answer-input')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') submitAnswer();
-});
-
-function startTimer(seconds) {
-    clearInterval(timerInterval);
-    if (!seconds || seconds === 'unlimited') {
-        document.getElementById('time-left').innerText = '∞';
-        return;
-    }
-    let left = parseInt(seconds);
-    document.getElementById('time-left').innerText = left;
-
-    timerInterval = setInterval(() => {
-        left--;
-        document.getElementById('time-left').innerText = left;
-        if (left <= 0) clearInterval(timerInterval);
-    }, 1000);
-}
-
-function sendEmote(emoji) {
-    socket.emit('sendEmote', { roomId: currentRoom, emoji, from: myIndex });
-}
-
-socket.on('receiveEmote', (data) => {
-    const targetArea = data.from === myIndex ? document.getElementById('my-area') : document.getElementById('enemy-area');
-    const pop = document.createElement('div');
-    pop.className = 'emote-pop';
-    pop.innerText = data.emoji;
-    targetArea.appendChild(pop);
-    setTimeout(() => pop.remove(), 1200);
-});
