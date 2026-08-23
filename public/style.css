@@ -1,102 +1,22 @@
-* {
-    box-sizing: border-box;
+/* Animation Custom สำหรับช่องป้อนคำตอบผิด */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
 }
 
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: #0f172a;
-    color: #f8fafc;
+.shake {
+    animation: shake 0.3s ease-in-out;
+    border-color: #f43f5e !important;
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.4) !important;
+}
+
+/* ซ่อนลูกศรใน Input type number */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
     margin: 0;
 }
-
-.card {
-    background: #1e293b;
-    padding: 2.5rem 2rem;
-    border-radius: 16px;
-    text-align: center;
-    width: 340px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-    border: 1px solid #334155;
-}
-
-h2 {
-    margin-top: 0;
-    color: #38bdf8;
-    font-size: 1.8rem;
-}
-
-.status-text {
-    font-size: 1rem;
-    color: #fbbf24;
-    margin: 1.5rem 0;
-    line-height: 1.5;
-}
-
-.scores {
-    display: flex;
-    justify-content: space-between;
-    font-weight: bold;
-    font-size: 1rem;
-    margin-bottom: 1.5rem;
-    background: #0f172a;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #334155;
-}
-
-.score-item {
-    color: #e2e8f0;
-}
-
-.score-item span {
-    color: #38bdf8;
-    font-size: 1.2rem;
-}
-
-.question {
-    font-size: 3.2rem;
-    margin: 1rem 0;
-    font-weight: bold;
-    color: #38bdf8;
-    letter-spacing: 2px;
-}
-
-input {
-    width: 100%;
-    padding: 12px;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    border: 2px solid #334155;
-    background: #0f172a;
-    color: #fff;
-    text-align: center;
-    margin-bottom: 1rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-input:focus {
-    border-color: #38bdf8;
-}
-
-button {
-    width: 100%;
-    background: #38bdf8;
-    border: none;
-    color: #0f172a;
-    font-weight: bold;
-    padding: 12px;
-    font-size: 1.1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-button:hover {
-    background: #0284c7;
-    color: #fff;
+input[type=number] {
+    -moz-appearance: textfield;
 }
