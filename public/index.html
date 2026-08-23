@@ -26,27 +26,70 @@
             <h1 class="text-3xl font-extrabold tracking-wider bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent italic">
                 ⚔️ MATH BATTLE
             </h1>
-            <p class="text-xs text-slate-400 uppercase tracking-widest mt-1">Real-time Arena 1v1</p>
+            <p id="user-display" class="text-xs text-slate-400 uppercase tracking-widest mt-1">Real-time Arena 1v1</p>
         </header>
 
-        <!-- Screen 1: Lobby & Settings -->
-        <div id="lobby-box" class="space-y-5">
-            <div class="space-y-4 bg-slate-950/60 border border-slate-800 rounded-2xl p-5">
-                
-                <!-- Difficulty Selection -->
+        <!-- Screen 0: Auth Box (Login / Register) -->
+        <div id="auth-box" class="space-y-4">
+            <div class="flex border-b border-slate-800">
+                <button id="tab-login" class="w-1/2 py-2 text-center text-sm font-bold border-b-2 border-cyan-400 text-cyan-400">เข้าสู่ระบบ</button>
+                <button id="tab-register" class="w-1/2 py-2 text-center text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300">ลงทะเบียน</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="space-y-3">
                 <div>
-                    <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">ระดับความยาก</label>
-                    <select id="difficulty-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                    <label class="text-xs text-slate-400">ชื่อผู้ใช้</label>
+                    <input type="text" id="login-username" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400">รหัสผ่าน</label>
+                    <input type="password" id="login-password" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                </div>
+                <button type="submit" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 rounded-xl transition">เข้าสู่ระบบ 🚀</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="register-form" class="space-y-3 hidden">
+                <div>
+                    <label class="text-xs text-slate-400">ชื่อผู้ใช้</label>
+                    <input type="text" id="reg-username" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400">รหัสผ่าน</label>
+                    <input type="password" id="reg-password" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400">ประเทศ / ภูมิภาค</label>
+                    <select id="reg-country" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                        <option value="TH">🇹🇭 ประเทศไทย (Thailand)</option>
+                        <option value="JP">🇯🇵 ญี่ปุ่น (Japan)</option>
+                        <option value="KR">🇰🇷 เกาหลีใต้ (South Korea)</option>
+                        <option value="US">🇺🇸 สหรัฐอเมริกา (USA)</option>
+                        <option value="GLOBAL">🌐 อื่นๆ (Global)</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-400 text-white font-bold py-3 rounded-xl transition">ลงทะเบียน ✨</button>
+            </form>
+            
+            <p id="auth-error" class="text-xs text-rose-500 text-center hidden"></p>
+        </div>
+
+        <!-- Screen 1: Lobby & Settings -->
+        <div id="lobby-box" class="space-y-4 hidden">
+            <div class="space-y-3 bg-slate-950/60 border border-slate-800 rounded-2xl p-4">
+                <div>
+                    <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">ระดับความยาก</label>
+                    <select id="difficulty-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500">
                         <option value="easy">ง่าย (บวก-ลบ เลขไม่เกิน 20)</option>
                         <option value="medium" selected>ปานกลาง (บวก-ลบ-คูณ)</option>
                         <option value="hard">ยาก (คูณ-หาร เลขหลายหลัก)</option>
                     </select>
                 </div>
 
-                <!-- Time Limit Selection -->
                 <div>
-                    <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">เวลาตอบต่อข้อ</label>
-                    <select id="time-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                    <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">เวลาตอบต่อข้อ</label>
+                    <select id="time-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500">
                         <option value="unlimited">ไม่จำกัดเวลา ♾️</option>
                         <option value="5">5 วินาที (เร็วสุดขีด)</option>
                         <option value="10" selected>10 วินาที (กำลังดี)</option>
@@ -54,10 +97,9 @@
                     </select>
                 </div>
 
-                <!-- Total Questions Selection -->
                 <div>
-                    <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">จำนวนข้อทั้งหมด</label>
-                    <select id="question-count-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                    <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-1">จำนวนข้อทั้งหมด</label>
+                    <select id="question-count-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500">
                         <option value="5">5 ข้อ (เกมไว)</option>
                         <option value="10" selected>10 ข้อ (มาตรฐาน)</option>
                         <option value="15">15 ข้อ (วัดความอึด)</option>
@@ -66,73 +108,98 @@
                 </div>
             </div>
 
-            <button id="find-match-btn" 
-                class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-slate-950 font-black text-xl py-4 rounded-2xl shadow-lg shadow-cyan-500/25 transition-all duration-150 uppercase tracking-wider">
-                🎮 เริ่มหาห้องแข่งขัน
-            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="find-match-btn" class="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black py-3 rounded-xl shadow-lg transition text-sm">🎮 เริ่มหาห้อง</button>
+                <button id="leaderboard-btn" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30 font-bold py-3 rounded-xl transition text-sm">🏆 ตารางอันดับ</button>
+            </div>
+            
+            <button id="logout-btn" class="w-full text-xs text-slate-500 hover:text-slate-300 py-1">ออกจากระบบ</button>
         </div>
 
-        <!-- Screen 2: Searching -->
+        <!-- Screen 2: Leaderboard Box -->
+        <div id="leaderboard-box" class="space-y-4 hidden">
+            <div class="flex justify-between items-center">
+                <h2 class="text-lg font-bold text-amber-400">🏆 ตารางอันดับผู้เล่น</h2>
+                <select id="leaderboard-country-filter" class="bg-slate-950 border border-slate-800 text-xs rounded-lg p-1.5 text-slate-300">
+                    <option value="ALL">🌐 ทั่วโลก</option>
+                    <option value="TH">🇹🇭 ประเทศไทย</option>
+                    <option value="JP">🇯🇵 ญี่ปุ่น</option>
+                    <option value="KR">🇰🇷 เกาหลีใต้</option>
+                    <option value="US">🇺🇸 สหรัฐอเมริกา</option>
+                </select>
+            </div>
+
+            <div class="max-h-60 overflow-y-auto bg-slate-950/60 border border-slate-800 rounded-xl p-2 space-y-2">
+                <table class="w-full text-xs text-left">
+                    <thead class="text-slate-500 border-b border-slate-800">
+                        <tr>
+                            <th class="p-1">#</th>
+                            <th class="p-1">ชื่อ</th>
+                            <th class="p-1">ประเทศ</th>
+                            <th class="p-1 text-center">ชนะ</th>
+                            <th class="p-1 text-right">WinRate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-list">
+                        <!-- Items rendered by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <button id="back-to-lobby-btn" class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-sm transition">กลับหน้าหลัก</button>
+        </div>
+
+        <!-- Screen 3: Searching -->
         <div id="status-box" class="hidden bg-slate-950/60 border border-slate-800/80 rounded-2xl p-6 text-center space-y-4 shadow-inner">
             <div class="flex items-center justify-center gap-2 text-amber-400 font-medium">
                 <span class="inline-block w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
-                <span id="status-text">กำลังค้นหาผู้เล่นที่เลือกเงื่อนไขตรงกัน...</span>
+                <span id="status-text">กำลังค้นหาผู้เล่น...</span>
             </div>
             <div id="match-info" class="text-xs text-slate-400 leading-relaxed"></div>
             <button id="cancel-match-btn" class="text-xs text-rose-400 hover:underline">ยกเลิกการค้นหา</button>
         </div>
 
-        <!-- Screen 3: Game Box -->
-        <div id="game-box" class="hidden space-y-5">
-            <!-- Question Counter Bar -->
+        <!-- Screen 4: Game Box -->
+        <div id="game-box" class="hidden space-y-4">
             <div class="text-center bg-slate-950/80 border border-slate-800 rounded-xl py-1.5 px-3">
                 <span id="question-tracker" class="text-xs font-bold tracking-widest text-cyan-400">ข้อที่ 1 / 10</span>
             </div>
 
-            <!-- Scoreboard -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="bg-gradient-to-b from-cyan-950/40 to-slate-950 border border-cyan-500/30 rounded-2xl p-3 text-center">
-                    <p class="text-xs text-cyan-400 font-semibold uppercase tracking-wider">YOU</p>
+                    <p id="my-name-display" class="text-xs text-cyan-400 font-semibold uppercase truncate">YOU</p>
                     <p id="my-score" class="text-3xl font-black text-cyan-300">0</p>
                 </div>
                 <div class="bg-gradient-to-b from-rose-950/40 to-slate-950 border border-rose-500/30 rounded-2xl p-3 text-center">
-                    <p class="text-xs text-rose-400 font-semibold uppercase tracking-wider">ENEMY</p>
+                    <p id="opponent-name-display" class="text-xs text-rose-400 font-semibold uppercase truncate">ENEMY</p>
                     <p id="opponent-score" class="text-3xl font-black text-rose-400">0</p>
                 </div>
             </div>
 
-            <!-- Timer Bar -->
             <div class="w-full bg-slate-950 border border-slate-800 rounded-full h-3 overflow-hidden p-0.5">
                 <div id="timer-bar" class="bg-cyan-400 h-full rounded-full transition-all duration-200 w-full"></div>
             </div>
 
-            <!-- Problem display -->
-            <div class="relative bg-slate-950/80 border border-slate-800 rounded-2xl py-8 text-center shadow-inner overflow-hidden">
+            <div class="relative bg-slate-950/80 border border-slate-800 rounded-2xl py-8 text-center shadow-inner">
                 <p id="problem" class="text-5xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-sky-200 to-white">?-?</p>
             </div>
 
-            <!-- Input & Submit -->
             <div class="space-y-3">
                 <input type="number" id="answer" placeholder="ป้อนคำตอบ..." autofocus autocomplete="off"
-                    class="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl px-4 py-3.5 text-center text-2xl font-bold text-cyan-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500">
-                <button id="submit-btn" 
-                    class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-lg py-3.5 rounded-2xl shadow-lg transition-all uppercase">
-                    ส่งคำตอบ 🚀
-                </button>
+                    class="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl px-4 py-3 text-center text-2xl font-bold text-cyan-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500">
+                <button id="submit-btn" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-lg py-3 rounded-2xl shadow-lg transition">ส่งคำตอบ 🚀</button>
             </div>
         </div>
 
     </main>
 
-    <!-- Custom Modal -->
+    <!-- Modal -->
     <div id="modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 hidden z-50">
         <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 text-center max-w-xs w-full shadow-2xl">
             <div id="modal-icon" class="text-5xl mb-3">🏆</div>
             <h3 id="modal-title" class="text-2xl font-bold mb-2">ผลการแข่งขัน</h3>
             <p id="modal-desc" class="text-slate-400 text-sm mb-6">คำอธิบาย</p>
-            <button onclick="location.reload()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl transition">
-                กลับหน้าหลัก
-            </button>
+            <button onclick="location.reload()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold py-3 rounded-xl transition">กลับหน้าหลัก</button>
         </div>
     </div>
 
@@ -140,4 +207,4 @@
     <script src="client.js"></script>
 </body>
     </html>
-                    
+                
