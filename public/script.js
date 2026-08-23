@@ -13,12 +13,12 @@ function showModal(title, msg, icon = '🏆') {
     document.getElementById('modal-icon').innerText = icon;
     
     const modalBox = document.getElementById('modal-box');
-    modalBox.style.display = 'flex'; // แสดง Modal
+    modalBox.style.display = 'flex';
 }
 
 function closeModal() {
     const modalBox = document.getElementById('modal-box');
-    modalBox.style.display = 'none'; // ซ่อน Modal
+    modalBox.style.display = 'none';
 }
 
 function switchTab(tab) {
@@ -85,6 +85,13 @@ function findMatch() {
 function cancelMatch() {
     socket.emit('cancelMatch');
     document.getElementById('queue-box').classList.add('hidden');
+}
+
+function surrenderGame() {
+    if (!currentRoom) return;
+    if (confirm('คุณต้องการยอมแพ้และออกจากเกมหรือไม่?')) {
+        socket.emit('surrender', { roomId: currentRoom });
+    }
 }
 
 async function getLeaderboard() {
@@ -167,12 +174,19 @@ socket.on('updateScore', (scores) => {
 socket.on('gameOver', (data) => {
     clearInterval(timerInterval);
     
-    if (data.message) {
+    if (data.surrenderedBy) {
+        if (data.surrenderedBy === currentUser.username) {
+            showModal('ยอมแพ้ 🏳️', 'คุณได้ยอมแพ้และออกจากเกมเรียบร้อยแล้ว', '🏳️');
+        } else {
+            showModal('ชนะบาย! 🎉', `คู่ต่อสู้ (${data.surrenderedBy}) ยอมแพ้แล้ว! คุณเป็นฝ่ายชนะ!`, '👑');
+        }
+    } else if (data.message) {
         showModal('ชนะบาย! 🎉', data.message, '👑');
     } else {
         showModal('จบการแข่งขัน! 🏁', `คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`, '⚔️');
     }
     
+    currentRoom = null;
     document.getElementById('game-box').classList.add('hidden');
     document.getElementById('lobby-box').classList.remove('hidden');
 });
