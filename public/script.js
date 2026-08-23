@@ -54,6 +54,10 @@ async function handleAuthSubmit() {
 
         if (res.ok && data.success) {
             currentUser = data.user;
+            
+            // บันทึกข้อมูลผู้ใช้ลง localStorage เพื่อให้จำสถานะการล็อกอิน
+            localStorage.setItem('user', JSON.stringify(currentUser));
+
             document.getElementById('display-user').innerText = currentUser.username;
             document.getElementById('display-country').innerText = currentUser.country || 'TH';
             document.getElementById('lb-user-name').innerText = currentUser.username;
@@ -230,3 +234,36 @@ socket.on('receiveEmote', (data) => {
     targetArea.appendChild(pop);
     setTimeout(() => pop.remove(), 1200);
 });
+
+// ตรวจสอบและล็อกอินอัตโนมัติเมื่อเปิดเว็บหรือรีเฟรช
+window.onload = async () => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+        try {
+            const userObj = JSON.parse(savedUser);
+            
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: userObj.username, password: userObj.password })
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                currentUser = data.user;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+
+                document.getElementById('display-user').innerText = currentUser.username;
+                document.getElementById('display-country').innerText = currentUser.country || 'TH';
+                document.getElementById('lb-user-name').innerText = currentUser.username;
+
+                document.getElementById('auth-box').classList.add('hidden');
+                document.getElementById('lobby-box').classList.remove('hidden');
+            } else {
+                localStorage.removeItem('user');
+            }
+        } catch (err) {
+            console.error("Auto-login error:", err);
+        }
+    }
+};
