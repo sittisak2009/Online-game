@@ -25,7 +25,7 @@ async function fetchUsersFromSheet() {
     }
 }
 
-// ฟังก์ชันเพิ่มผู้ใช้ใหม่ลง SheetDB (ตรงกับ Columns: username, password, country, wins, losses, draws)
+// ฟังก์ชันเพิ่มผู้ใช้ใหม่ลง SheetDB (Columns: username, password, country, wins, losses, draws)
 async function addUserToSheet(userData) {
     try {
         await fetch(SHEETDB_URL, {
@@ -96,7 +96,6 @@ app.post('/api/login', async (req, res) => {
     const user = users.find(u => u.username === username && u.password === password);
     if (!user) return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
     
-    // แปลงค่าตัวเลขให้ถูกต้องก่อนส่งกลับ
     user.wins = Number(user.wins || 0);
     user.losses = Number(user.losses || 0);
     user.draws = Number(user.draws || 0);
@@ -112,14 +111,12 @@ app.get('/api/leaderboard', async (req, res) => {
         list = list.filter(u => u.country === countryFilter);
     }
     
-    // แปลงค่าเป็นตัวเลขเพื่อใช้คำนวนและเรียงลำดับ
     list.forEach(u => {
         u.wins = Number(u.wins || 0);
         u.losses = Number(u.losses || 0);
         u.draws = Number(u.draws || 0);
     });
 
-    // เรียงตาม wins มากไปน้อย
     list.sort((a, b) => b.wins - a.wins);
     res.json(list);
 });
@@ -168,13 +165,14 @@ function generateQuestion(diff) {
 }
 
 // ----------------------------------------------------
-// Socket.io Real-time Game Logic
+// Socket.io Real-time Game Logic & New Features
 // ----------------------------------------------------
 const rooms = {}; 
 let waitingPlayer = null; 
 
 io.on('connection', (socket) => {
     
+    // ระบบหาห้องดวลปกติ
     socket.on('findMatch', ({ user, config }) => {
         socket.user = user;
         socket.gameConfig = config;
@@ -228,6 +226,22 @@ io.on('connection', (socket) => {
         if (waitingPlayer === socket) {
             waitingPlayer = null;
         }
+    });
+
+    // [ฟีเจอร์ใหม่] โหมดฝึกซ้อมคนเดียว (Solo Practice)
+    socket.on('startSoloPractice', ({ config }) => {
+        const totalQ = parseInt(config.questions) || 10;
+        const questions = [];
+        for (let i = 0; i < totalQ; i++) {
+            questions.push(generateQuestion(config.diff));
+        }
+        
+        socket.emit('soloGameStarted', {
+            totalQ,
+            question: questions[0].text,
+            timeLimit: config.time,
+            questionsList: questions
+        });
     });
 
     socket.on('submitAnswer', ({ roomId, answer }) => {
@@ -307,3 +321,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+        
