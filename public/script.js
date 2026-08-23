@@ -1,34 +1,18 @@
 const socket = io();
 
-// State Variables
 let currentTab = 'login';
 let currentUser = null;
 let currentRoom = null;
 let myIndex = null;
 let timerInterval = null;
 
-// ================= 1. TAB SWITCHING & AUTH =================
 function switchTab(tab) {
     currentTab = tab;
-    const loginBtn = document.getElementById('tab-login-btn');
-    const regBtn = document.getElementById('tab-reg-btn');
-    const countryGroup = document.getElementById('country-group');
-    const submitBtn = document.getElementById('auth-submit-btn');
-    const errorMsg = document.getElementById('auth-error');
-
-    errorMsg.innerText = '';
-
-    if (tab === 'login') {
-        loginBtn.classList.add('active');
-        regBtn.classList.remove('active');
-        countryGroup.classList.add('hidden');
-        submitBtn.innerText = 'เข้าสู่สนามรบ 🚀';
-    } else {
-        regBtn.classList.add('active');
-        loginBtn.classList.remove('active');
-        countryGroup.classList.remove('hidden');
-        submitBtn.innerText = 'สมัครสมาชิก & ลุยเลย! 🚀';
-    }
+    document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
+    document.getElementById('tab-reg-btn').classList.toggle('active', tab === 'reg');
+    document.getElementById('country-group').classList.toggle('hidden', tab === 'login');
+    document.getElementById('auth-submit-btn').innerText = tab === 'login' ? 'เข้าสู่สนามรบ 🚀' : 'สมัครสมาชิก & ลุยเลย! 🚀';
+    document.getElementById('auth-error').innerText = '';
 }
 
 async function handleAuthSubmit() {
@@ -38,7 +22,7 @@ async function handleAuthSubmit() {
     const errorMsg = document.getElementById('auth-error');
 
     if (!username || !password) {
-        errorMsg.innerText = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบ';
+        errorMsg.innerText = 'กรุณากรอกข้อมูลให้ครบ';
         return;
     }
 
@@ -51,7 +35,6 @@ async function handleAuthSubmit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-
         const data = await res.json();
 
         if (res.ok && data.success) {
@@ -63,15 +46,13 @@ async function handleAuthSubmit() {
             document.getElementById('auth-box').classList.add('hidden');
             document.getElementById('lobby-box').classList.remove('hidden');
         } else {
-            errorMsg.innerText = data.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+            errorMsg.innerText = data.message || 'เกิดข้อผิดพลาด';
         }
     } catch (err) {
-        console.error(err);
         errorMsg.innerText = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
     }
 }
 
-// ================= 2. MATCHMAKING & LOBBY =================
 function findMatch() {
     const diff = document.getElementById('diff-select').value;
     const time = document.getElementById('time-select').value;
@@ -91,18 +72,19 @@ function cancelMatch() {
     document.getElementById('queue-box').classList.add('hidden');
 }
 
-// ================= 3. LEADERBOARD =================
 async function getLeaderboard() {
     const filter = document.getElementById('lb-country-filter').value;
+    const tbody = document.getElementById('lb-list-body');
     
     document.getElementById('lobby-box').classList.add('hidden');
     document.getElementById('lb-box').classList.remove('hidden');
 
+    tbody.innerHTML = '<tr><td colspan="5" style="color: #00d2ff;">กำลังโหลดข้อมูล...</td></tr>';
+
     try {
-        const res = await fetch(`/api/leaderboard?country=${filter}`);
+        const res = await fetch(`/api/leaderboard?country=${filter}&timestamp=${Date.now()}`);
         const list = await res.json();
         
-        const tbody = document.getElementById('lb-list-body');
         tbody.innerHTML = '';
 
         if (!list || list.length === 0) {
@@ -111,21 +93,26 @@ async function getLeaderboard() {
         }
 
         list.forEach((item, index) => {
-            const winRate = item.total_games > 0 ? Math.round((item.wins / item.total_games) * 100) : 0;
+            const name = item.username || item.Name || item.User || 'ไม่ระบุชื่อ';
+            const country = item.country || 'TH';
+            const wins = Number(item.wins) || 0;
+            const total = Number(item.total_games) || 0;
+            const winRate = total > 0 ? Math.round((wins / total) * 100) : 0;
             const rankClass = index === 0 ? 'rank-1' : (index === 1 ? 'rank-2' : '');
             
             tbody.innerHTML += `
                 <tr class="${rankClass}">
                     <td>${index + 1}</td>
-                    <td style="text-align: left;">${item.username}</td>
-                    <td>${item.country || 'TH'}</td>
-                    <td>${item.wins}</td>
+                    <td style="text-align: left;">${name}</td>
+                    <td>${country}</td>
+                    <td>${wins}</td>
                     <td>${winRate}%</td>
                 </tr>
             `;
         });
     } catch (err) {
         console.error(err);
+        tbody.innerHTML = '<tr><td colspan="5" style="color: #ff416c;">โหลดข้อมูลไม่สำเร็จ</td></tr>';
     }
 }
 
@@ -134,7 +121,7 @@ function backToLobby() {
     document.getElementById('lobby-box').classList.remove('hidden');
 }
 
-// ================= 4. GAMEPLAY & SOCKET =================
+// Socket Events
 socket.on('matchFound', (data) => {
     currentRoom = data.roomId;
     myIndex = data.players.findIndex(p => p.username === currentUser.username);
@@ -154,7 +141,6 @@ socket.on('newQuestion', (data) => {
     document.getElementById('problem-text').innerText = data.question;
     document.getElementById('answer-input').value = '';
     document.getElementById('answer-input').focus();
-
     startTimer(data.timeLimit);
 });
 
@@ -163,10 +149,16 @@ socket.on('updateScore', (scores) => {
     document.getElementById('p2-score').innerText = scores[myIndex === 0 ? 1 : 0];
 });
 
+socket.on('gameOver', (data) => {
+    clearInterval(timerInterval);
+    alert(`จบเกม! คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`);
+    document.getElementById('game-box').classList.add('hidden');
+    document.getElementById('lobby-box').classList.remove('hidden');
+});
+
 function submitAnswer() {
     const ans = document.getElementById('answer-input').value;
     if (ans === '') return;
-    
     socket.emit('submitAnswer', { roomId: currentRoom, answer: Number(ans) });
     document.getElementById('answer-input').value = '';
 }
@@ -181,16 +173,13 @@ function startTimer(seconds) {
         document.getElementById('time-left').innerText = '∞';
         return;
     }
-
     let left = parseInt(seconds);
     document.getElementById('time-left').innerText = left;
 
     timerInterval = setInterval(() => {
         left--;
         document.getElementById('time-left').innerText = left;
-        if (left <= 0) {
-            clearInterval(timerInterval);
-        }
+        if (left <= 0) clearInterval(timerInterval);
     }, 1000);
 }
 
@@ -206,4 +195,3 @@ socket.on('receiveEmote', (data) => {
     targetArea.appendChild(pop);
     setTimeout(() => pop.remove(), 1200);
 });
-        
