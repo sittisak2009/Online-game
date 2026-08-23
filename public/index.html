@@ -6,7 +6,14 @@
     <title>Math Battle Arena ⚔️</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+    <style>
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+        .shake { animation: shake 0.35s ease-in-out; }
+    </style>
 </head>
 <body class="bg-slate-950 text-white font-['Kanit'] min-h-screen flex items-center justify-center p-4">
 
@@ -40,6 +47,7 @@
                 <div>
                     <label class="block text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2">เวลาตอบต่อข้อ</label>
                     <select id="time-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white focus:outline-none focus:border-cyan-500">
+                        <option value="unlimited">ไม่จำกัดเวลา ♾️</option>
                         <option value="5">5 วินาที (เร็วสุดขีด)</option>
                         <option value="10" selected>10 วินาที (กำลังดี)</option>
                         <option value="15">15 วินาที (มีเวลาคิด)</option>
@@ -115,5 +123,4 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
 </body>
-    </html>
-                    
+</html>
