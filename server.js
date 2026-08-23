@@ -10,10 +10,8 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SheetDB URL ของนาย
 const SHEETDB_URL = process.env.SHEETDB_URL || 'https://sheetdb.io/api/v1/yt7phya14ic0d';
 
-// ฟังก์ชันดึงข้อมูลผู้ใช้ทั้งหมดจาก SheetDB
 async function fetchUsersFromSheet() {
     try {
         const response = await fetch(SHEETDB_URL);
@@ -25,29 +23,6 @@ async function fetchUsersFromSheet() {
     }
 }
 
-// ฟังก์ชันเพิ่มผู้ใช้ใหม่ลง SheetDB (Columns: username, password, country, wins, losses, draws)
-async function addUserToSheet(userData) {
-    try {
-        await fetch(SHEETDB_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                data: [{
-                    username: userData.username,
-                    password: userData.password,
-                    country: userData.country || 'TH',
-                    wins: 0,
-                    losses: 0,
-                    draws: 0
-                }] 
-            })
-        });
-    } catch (err) {
-        console.error("Error adding user to SheetDB:", err);
-    }
-}
-
-// ฟังก์ชันอัปเดตสถิติหลังจบเกม (wins, losses, draws) ใน SheetDB
 async function updatePlayerStatsInSheet(username, result) {
     try {
         const users = await fetchUsersFromSheet();
@@ -57,6 +32,7 @@ async function updatePlayerStatsInSheet(username, result) {
         let wins = Number(user.wins || 0);
         let losses = Number(user.losses || 0);
         let draws = Number(user.draws || 0);
+        let total = Number(user.total_games || 0) + 1;
 
         if (result === 'win') wins++;
         else if (result === 'loss') losses++;
@@ -66,7 +42,7 @@ async function updatePlayerStatsInSheet(username, result) {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                data: { wins, losses, draws }
+                data: { wins, losses, draws, total_games: total }
             })
         });
     } catch (err) {
@@ -74,20 +50,50 @@ async function updatePlayerStatsInSheet(username, result) {
     }
 }
 
-// ----------------------------------------------------
-// API Routes
-// ----------------------------------------------------
 app.post('/api/register', async (req, res) => {
     const { username, password, country } = req.body;
     if (!username || !password) return res.status(400).json({ success: false, message: 'กรอกข้อมูลไม่ครบ' });
     
-    const users = await fetchUsersFromSheet();
-    const existing = users.find(u => u.username === username);
-    if (existing) return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' });
+    try {
+        const users = await fetchUsersFromSheet();
+        const existing = users.find(u => u.username === username);
+        if (existing) return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' });
 
-    const newUser = { username, password, country: country || 'TH', wins: 0, losses: 0, draws: 0 };
-    await addUserToSheet(newUser);
-    res.json({ success: true, user: newUser });
+        let newId = 10000001;
+        if (users && users.length > 0) {
+            const lastUser = users[users.length - 1];
+            const lastIdValue = lastUser.ID || lastUser.id;
+            if (lastIdValue) {
+                newId = Number(lastIdValue) + 1;
+            }
+        }
+
+        const newUser = { 
+            ID: newId,
+            username, 
+            password, 
+            country: country || 'TH', 
+            wins: 0, 
+            losses: 0, 
+            draws: 0, 
+            total_games: 0 
+        };
+
+        const insertRes = await fetch(SHEETDB_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [newUser] })
+        });
+
+        if (insertRes.ok) {
+            res.json({ success: true, user: newUser });
+        } else {
+            res.status(400).json({ success: false, message: 'ไม่สามารถบันทึกข้อมูลลง Google Sheets ได้' });
+        }
+    } catch (err) {
+        console.error("Register error:", err);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์' });
+    }
 });
 
 app.post('/api/login', async (req, res) => {
@@ -99,6 +105,7 @@ app.post('/api/login', async (req, res) => {
     user.wins = Number(user.wins || 0);
     user.losses = Number(user.losses || 0);
     user.draws = Number(user.draws || 0);
+    user.total_games = Number(user.total_games || 0);
 
     res.json({ success: true, user });
 });
@@ -115,15 +122,13 @@ app.get('/api/leaderboard', async (req, res) => {
         u.wins = Number(u.wins || 0);
         u.losses = Number(u.losses || 0);
         u.draws = Number(u.draws || 0);
+        u.total_games = Number(u.total_games || 0);
     });
 
     list.sort((a, b) => b.wins - a.wins);
     res.json(list);
 });
 
-// ----------------------------------------------------
-// Math Question Generator
-// ----------------------------------------------------
 function generateQuestion(diff) {
     let num1 = Math.floor(Math.random() * 20) + 1;
     let num2 = Math.floor(Math.random() * 20) + 1;
@@ -164,15 +169,11 @@ function generateQuestion(diff) {
     return { text, correctAnswer };
 }
 
-// ----------------------------------------------------
-// Socket.io Real-time Game Logic
-// ----------------------------------------------------
 const rooms = {}; 
-const waitingPlayers = {}; // แยกคิวตามการตั้งค่าโหมด (แก้ปัญหาจับคู่ข้ามโหมด)
+const waitingPlayers = {}; 
 
 io.on('connection', (socket) => {
     
-    // ระบบหาห้องดวล (แยกคิวตาม Config เป๊ะๆ)
     socket.on('findMatch', ({ user, config }) => {
         socket.user = user;
         socket.gameConfig = config;
@@ -233,23 +234,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // โหมดฝึกซ้อมคนเดียว (Solo Practice)
-    socket.on('startSoloPractice', ({ config }) => {
-        const totalQ = parseInt(config.questions) || 10;
-        const questions = [];
-        for (let i = 0; i < totalQ; i++) {
-            questions.push(generateQuestion(config.diff));
-        }
-        
-        socket.emit('soloGameStarted', {
-            totalQ,
-            question: questions[0].text,
-            timeLimit: config.time,
-            questionsList: questions
-        });
-    });
-
-    // ระบบส่งคำตอบ (ตอบถูกถึงเปลี่ยนข้อ, ตอบผิดแก้ตัวใหม่ได้ข้อเดิม)
     socket.on('submitAnswer', ({ roomId, answer }) => {
         const room = rooms[roomId];
         if (!room) return;
@@ -261,7 +245,6 @@ io.on('connection', (socket) => {
         if (!currentQ) return;
 
         if (Number(answer) === currentQ.correctAnswer) {
-            // ตอบถูก: ได้คะแนน และเปลี่ยนข้อใหม่
             room.scores[pIndex] += 10;
             io.to(roomId).emit('updateScore', room.scores);
 
@@ -291,9 +274,6 @@ io.on('connection', (socket) => {
                 io.to(roomId).emit('gameOver', { scores: room.scores });
                 delete rooms[roomId];
             }
-        } else {
-            // ตอบผิด: ส่งสัญญาณเตือนให้ตอบใหม่ในข้อเดิม
-            socket.emit('wrongAnswer', { message: 'ตอบผิด! ลองใหม่อีกครั้ง' });
         }
     });
 
@@ -334,4 +314,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-         
+                
