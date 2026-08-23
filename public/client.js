@@ -2,6 +2,7 @@ const socket = io();
 
 let currentRoomId = null;
 let currentUser = null;
+let energy = 0;
 
 // UI Panels
 const authBox = document.getElementById('auth-box');
@@ -10,7 +11,7 @@ const leaderboardBox = document.getElementById('leaderboard-box');
 const statusBox = document.getElementById('status-box');
 const gameBox = document.getElementById('game-box');
 
-// Auth UI Elements
+// Auth Elements
 const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
 const loginForm = document.getElementById('login-form');
@@ -19,13 +20,19 @@ const authError = document.getElementById('auth-error');
 const userDisplay = document.getElementById('user-display');
 const logoutBtn = document.getElementById('logout-btn');
 
-// Game UI Elements
+// Game Elements
 const statusText = document.getElementById('status-text');
 const matchInfo = document.getElementById('match-info');
 const problemEl = document.getElementById('problem');
+const problemBox = document.getElementById('problem-box');
 const answerInput = document.getElementById('answer');
 const timerBar = document.getElementById('timer-bar');
+const energyBar = document.getElementById('energy-bar');
 const questionTracker = document.getElementById('question-tracker');
+const comboTracker = document.getElementById('combo-tracker');
+
+const skillFreezeBtn = document.getElementById('skill-freeze-btn');
+const skillBlindBtn = document.getElementById('skill-blind-btn');
 
 const difficultySelect = document.getElementById('difficulty-select');
 const timeSelect = document.getElementById('time-select');
@@ -45,30 +52,27 @@ const opponentNameDisplay = document.getElementById('opponent-name-display');
 const leaderboardCountryFilter = document.getElementById('leaderboard-country-filter');
 const leaderboardList = document.getElementById('leaderboard-list');
 
-// Modal Elements
+// Modal
 const modal = document.getElementById('modal');
 const modalIcon = document.getElementById('modal-icon');
 const modalTitle = document.getElementById('modal-title');
 const modalDesc = document.getElementById('modal-desc');
 
-// Tab Switching
+// Tabs
 tabLogin.addEventListener('click', () => {
     tabLogin.className = "w-1/2 py-2 text-center text-sm font-bold border-b-2 border-cyan-400 text-cyan-400";
-    tabRegister.className = "w-1/2 py-2 text-center text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300";
+    tabRegister.className = "w-1/2 py-2 text-center text-sm font-bold border-b-2 border-transparent text-slate-500";
     loginForm.classList.remove('hidden');
     registerForm.classList.add('hidden');
-    authError.classList.add('hidden');
 });
 
 tabRegister.addEventListener('click', () => {
     tabRegister.className = "w-1/2 py-2 text-center text-sm font-bold border-b-2 border-cyan-400 text-cyan-400";
-    tabLogin.className = "w-1/2 py-2 text-center text-sm font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-300";
+    tabLogin.className = "w-1/2 py-2 text-center text-sm font-bold border-b-2 border-transparent text-slate-500";
     registerForm.classList.remove('hidden');
     loginForm.classList.add('hidden');
-    authError.classList.add('hidden');
 });
 
-// Login / Register Submit
 loginForm.addEventListener('submit', (e) => {
     e.preventDefault();
     socket.emit('login', {
@@ -101,10 +105,9 @@ function showLobby() {
     authBox.classList.add('hidden');
     leaderboardBox.classList.add('hidden');
     lobbyBox.classList.remove('hidden');
-    userDisplay.innerText = `ผู้เล่น: ${currentUser.username} (${currentUser.country})`;
+    userDisplay.innerText = `🎮 ${currentUser.username} (${currentUser.country})`;
 }
 
-// Check Auto Login
 const savedUser = localStorage.getItem('math_user');
 if (savedUser) {
     currentUser = JSON.parse(savedUser);
@@ -116,7 +119,7 @@ logoutBtn.addEventListener('click', () => {
     location.reload();
 });
 
-// Leaderboard Logic
+// Leaderboard
 leaderboardBtn.addEventListener('click', () => {
     lobbyBox.classList.add('hidden');
     leaderboardBox.classList.remove('hidden');
@@ -124,7 +127,6 @@ leaderboardBtn.addEventListener('click', () => {
 });
 
 backToLobbyBtn.addEventListener('click', showLobby);
-
 leaderboardCountryFilter.addEventListener('change', fetchLeaderboard);
 
 function fetchLeaderboard() {
@@ -138,7 +140,7 @@ socket.on('leaderboardData', (data) => {
         const winRate = totalGames > 0 ? ((item.wins / totalGames) * 100).toFixed(1) : 0;
         
         const tr = document.createElement('tr');
-        tr.className = "border-b border-slate-900 hover:bg-slate-900/50";
+        tr.className = "border-b border-slate-900";
         tr.innerHTML = `
             <td class="p-1 font-bold ${index === 0 ? 'text-amber-400' : 'text-slate-400'}">${index + 1}</td>
             <td class="p-1 font-semibold">${item.username}</td>
@@ -150,7 +152,7 @@ socket.on('leaderboardData', (data) => {
     });
 });
 
-// Matchmaking Logic
+// Matchmaking
 findMatchBtn.addEventListener('click', () => {
     const diff = difficultySelect.value;
     const time = timeSelect.value;
@@ -159,8 +161,7 @@ findMatchBtn.addEventListener('click', () => {
     lobbyBox.classList.add('hidden');
     statusBox.classList.remove('hidden');
     
-    const timeText = time === 'unlimited' ? 'ไม่จำกัดเวลา' : `${time}s`;
-    matchInfo.innerHTML = `ความยาก: <span class="text-cyan-400 font-bold">${diff}</span> | เวลา: <span class="text-cyan-400 font-bold">${timeText}</span><br>จำนวน: <span class="text-cyan-400 font-bold">${totalQ} ข้อ</span>`;
+    matchInfo.innerHTML = `โหมด: <span class="text-cyan-400 font-bold">${diff}</span> | เวลา: <span class="text-cyan-400 font-bold">${time}s</span> | <span class="text-cyan-400 font-bold">${totalQ} ข้อ</span>`;
     
     socket.emit('findMatch', { 
         username: currentUser.username, 
@@ -182,11 +183,15 @@ socket.on('waiting', (msg) => {
 
 socket.on('gameStart', (data) => {
     currentRoomId = data.roomId;
+    energy = 0;
+    updateEnergyBar();
+
     statusBox.classList.add('hidden');
     gameBox.classList.remove('hidden');
     problemEl.innerText = data.problem;
     questionTracker.innerText = `ข้อที่ ${data.currentQuestion} / ${data.totalQuestions}`;
-    
+    comboTracker.innerText = `COMBO x0 🔥`;
+
     const myId = socket.id;
     const opponentId = Object.keys(data.players).find(id => id !== myId);
     
@@ -200,18 +205,10 @@ socket.on('gameStart', (data) => {
 socket.on('timerUpdate', ({ timeLeft, maxTime, isUnlimited }) => {
     if (isUnlimited) {
         timerBar.style.width = '100%';
-        timerBar.className = "bg-indigo-500 h-full rounded-full transition-all duration-200";
         return;
     }
-
     const percentage = (timeLeft / maxTime) * 100;
     timerBar.style.width = `${percentage}%`;
-    
-    if (percentage <= 30) {
-        timerBar.className = "bg-rose-500 h-full rounded-full transition-all duration-200";
-    } else {
-        timerBar.className = "bg-cyan-400 h-full rounded-full transition-all duration-200";
-    }
 });
 
 socket.on('nextProblem', (data) => {
@@ -221,9 +218,66 @@ socket.on('nextProblem', (data) => {
     updateScores(data.scores);
 });
 
+socket.on('correctAnswerBonus', ({ combo }) => {
+    comboTracker.innerText = `COMBO x${combo} 🔥`;
+    energy = Math.min(100, energy + 50);
+    updateEnergyBar();
+});
+
 socket.on('wrongAnswer', () => {
+    comboTracker.innerText = `COMBO x0 🔥`;
     answerInput.classList.add('shake');
-    setTimeout(() => answerInput.classList.remove('shake'), 350);
+    setTimeout(() => answerInput.classList.remove('shake'), 300);
+});
+
+// Energy & Skills
+function updateEnergyBar() {
+    energyBar.style.width = `${energy}%`;
+    if (energy >= 100) {
+        skillFreezeBtn.disabled = false;
+        skillBlindBtn.disabled = false;
+        skillFreezeBtn.classList.remove('opacity-50');
+        skillBlindBtn.classList.remove('opacity-50');
+    } else {
+        skillFreezeBtn.disabled = true;
+        skillBlindBtn.disabled = true;
+        skillFreezeBtn.classList.add('opacity-50');
+        skillBlindBtn.classList.add('opacity-50');
+    }
+}
+
+skillFreezeBtn.addEventListener('click', () => {
+    if (energy >= 100) {
+        energy = 0;
+        updateEnergyBar();
+        socket.emit('useSkill', { roomId: currentRoomId, skillType: 'freeze' });
+    }
+});
+
+skillBlindBtn.addEventListener('click', () => {
+    if (energy >= 100) {
+        energy = 0;
+        updateEnergyBar();
+        socket.emit('useSkill', { roomId: currentRoomId, skillType: 'blind' });
+    }
+});
+
+// Receive Skill Attacks
+socket.on('receiveAttack', ({ skillType }) => {
+    if (skillType === 'freeze') {
+        answerInput.disabled = true;
+        answerInput.placeholder = "❄️ โดนแช่แข็ง! (3 วินาที)";
+        setTimeout(() => {
+            answerInput.disabled = false;
+            answerInput.placeholder = "ป้อนคำตอบ...";
+            answerInput.focus();
+        }, 3000);
+    } else if (skillType === 'blind') {
+        problemBox.classList.add('blur-effect');
+        setTimeout(() => {
+            problemBox.classList.remove('blur-effect');
+        }, 4000);
+    }
 });
 
 socket.on('gameOver', (data) => {
@@ -232,14 +286,14 @@ socket.on('gameOver', (data) => {
     if (data.resultType === 'draw') {
         modalIcon.innerText = "🤝";
         modalTitle.innerText = "DRAW!";
-        modalTitle.className = "text-2xl font-black mb-2 text-amber-400";
-        modalDesc.innerText = "เสมอ! ทั้งสองฝั่งทำคะแนนได้เท่ากันพอดี";
+        modalTitle.className = "text-2xl font-black mb-1 text-amber-400";
+        modalDesc.innerText = "ฝีมือสูสีมาก เสมอกันไปอย่างสมเกียรติ!";
     } else {
         const isWinner = data.winnerId === socket.id;
         modalIcon.innerText = isWinner ? "👑" : "💀";
         modalTitle.innerText = isWinner ? "VICTORY!" : "DEFEAT!";
-        modalTitle.className = `text-2xl font-black mb-2 ${isWinner ? 'text-cyan-400' : 'text-rose-500'}`;
-        modalDesc.innerText = isWinner ? "ชนะแล้ว! เพิ่มสถิติลงตารางอันดับแล้ว" : "แพ้แล้ว! พยายามใหม่อีกครั้งนะ";
+        modalTitle.className = `text-2xl font-black mb-1 ${isWinner ? 'text-cyan-400' : 'text-rose-500'}`;
+        modalDesc.innerText = isWinner ? "เฉียบขาดมาก! คว้าชัยชนะและเพิ่มอันดับขึ้น Leaderboard" : "โดนคู่แข่งสยบเข้าให้ ฝึกสมองแล้วกลับมาแก้มือใหม่!";
     }
     
     modal.classList.remove('hidden');
@@ -248,8 +302,8 @@ socket.on('gameOver', (data) => {
 socket.on('playerLeft', () => {
     modalIcon.innerText = "🚪";
     modalTitle.innerText = "PLAYER LEFT";
-    modalTitle.className = "text-2xl font-black mb-2 text-amber-400";
-    modalDesc.innerText = "คู่แข่งของคุณออกจากเกม";
+    modalTitle.className = "text-2xl font-black mb-1 text-amber-400";
+    modalDesc.innerText = "คู่แข่งทนความโหดไม่ไหว กดออกจากเกมกะทันหัน";
     modal.classList.remove('hidden');
 });
 
@@ -271,4 +325,4 @@ submitBtn.addEventListener('click', sendAnswer);
 answerInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendAnswer();
 });
-        
+    
