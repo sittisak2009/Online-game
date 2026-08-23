@@ -165,7 +165,7 @@ function generateQuestion(diff) {
 }
 
 // ----------------------------------------------------
-// Socket.io Real-time Game Logic & Fixed Matchmaking
+// Socket.io Real-time Game Logic
 // ----------------------------------------------------
 const rooms = {}; 
 const waitingPlayers = {}; // แยกคิวตามการตั้งค่าโหมด (แก้ปัญหาจับคู่ข้ามโหมด)
@@ -249,6 +249,7 @@ io.on('connection', (socket) => {
         });
     });
 
+    // ระบบส่งคำตอบ (ตอบถูกถึงเปลี่ยนข้อ, ตอบผิดแก้ตัวใหม่ได้ข้อเดิม)
     socket.on('submitAnswer', ({ roomId, answer }) => {
         const room = rooms[roomId];
         if (!room) return;
@@ -257,37 +258,42 @@ io.on('connection', (socket) => {
         if (pIndex === -1) return;
 
         const currentQ = room.questions[room.currentQIndex];
-        if (currentQ && Number(answer) === currentQ.correctAnswer) {
+        if (!currentQ) return;
+
+        if (Number(answer) === currentQ.correctAnswer) {
+            // ตอบถูก: ได้คะแนน และเปลี่ยนข้อใหม่
             room.scores[pIndex] += 10;
-        }
+            io.to(roomId).emit('updateScore', room.scores);
 
-        io.to(roomId).emit('updateScore', room.scores);
+            room.currentQIndex++;
 
-        room.currentQIndex++;
-
-        if (room.currentQIndex < room.questions.length) {
-            io.to(roomId).emit('newQuestion', {
-                qIndex: room.currentQIndex + 1,
-                totalQ: room.questions.length,
-                question: room.questions[room.currentQIndex].text,
-                timeLimit: room.config.time
-            });
-        } else {
-            let winnerIdx = -1;
-            if (room.scores[0] > room.scores[1]) winnerIdx = 0;
-            else if (room.scores[1] > room.scores[0]) winnerIdx = 1;
-
-            if (winnerIdx !== -1) {
-                const winnerUser = room.players[winnerIdx].username;
-                const loserUser = room.players[winnerIdx === 0 ? 1 : 0].username;
-                updatePlayerStatsInSheet(winnerUser, 'win');
-                updatePlayerStatsInSheet(loserUser, 'loss');
+            if (room.currentQIndex < room.questions.length) {
+                io.to(roomId).emit('newQuestion', {
+                    qIndex: room.currentQIndex + 1,
+                    totalQ: room.questions.length,
+                    question: room.questions[room.currentQIndex].text,
+                    timeLimit: room.config.time
+                });
             } else {
-                room.players.forEach(p => updatePlayerStatsInSheet(p.username, 'draw'));
-            }
+                let winnerIdx = -1;
+                if (room.scores[0] > room.scores[1]) winnerIdx = 0;
+                else if (room.scores[1] > room.scores[0]) winnerIdx = 1;
 
-            io.to(roomId).emit('gameOver', { scores: room.scores });
-            delete rooms[roomId];
+                if (winnerIdx !== -1) {
+                    const winnerUser = room.players[winnerIdx].username;
+                    const loserUser = room.players[winnerIdx === 0 ? 1 : 0].username;
+                    updatePlayerStatsInSheet(winnerUser, 'win');
+                    updatePlayerStatsInSheet(loserUser, 'loss');
+                } else {
+                    room.players.forEach(p => updatePlayerStatsInSheet(p.username, 'draw'));
+                }
+
+                io.to(roomId).emit('gameOver', { scores: room.scores });
+                delete rooms[roomId];
+            }
+        } else {
+            // ตอบผิด: ส่งสัญญาณเตือนให้ตอบใหม่ในข้อเดิม
+            socket.emit('wrongAnswer', { message: 'ตอบผิด! ลองใหม่อีกครั้ง' });
         }
     });
 
@@ -328,4 +334,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-        
+         
