@@ -10,10 +10,10 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ⚠️ วางลิงก์ SheetDB ของนายแทนที่ตรงนี้ได้เลยครับ
+// ⚠️ ใส่ลิงก์ SheetDB ของนายตรงนี้
 const SHEETDB_URL = 'https://sheetdb.io/api/v1/yt7phya14ic0d';
 
-// API: Register (บันทึกลง SheetDB)
+// API: Register
 app.post('/api/register', async (req, res) => {
     const { username, password, country } = req.body;
     try {
@@ -37,7 +37,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// API: Login (เช็คจาก SheetDB)
+// API: Login
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
@@ -55,7 +55,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// API: Leaderboard (ดึงจาก SheetDB)
+// API: Leaderboard
 app.get('/api/leaderboard', async (req, res) => {
     const { country } = req.query;
     try {
@@ -99,7 +99,8 @@ io.on('connection', (socket) => {
                 currentQ: 0,
                 totalQ: parseInt(player.config.questions) || 10,
                 timeLimit: player.config.time,
-                diff: player.config.diff
+                diff: player.config.diff,
+                timer: null
             };
 
             socket.join(roomId);
@@ -147,6 +148,9 @@ function sendNextQuestion(roomId) {
     const room = rooms[roomId];
     if (!room) return;
 
+    // ล้างตัวนับเวลาเก่าออกก่อน
+    if (room.timer) clearTimeout(room.timer);
+
     if (room.currentQ >= room.totalQ) {
         io.to(roomId).emit('gameOver', { scores: room.scores });
         delete rooms[roomId];
@@ -180,6 +184,14 @@ function sendNextQuestion(roomId) {
         question: `${num1} ${op} ${num2}`,
         timeLimit: room.timeLimit
     });
+
+    // ถ้าตั้งเวลานับถอยหลังไว้ ให้สั่งข้ามข้ออัตโนมัติเมื่อหมดเวลา
+    if (room.timeLimit && room.timeLimit !== 'unlimited') {
+        const timeoutMs = (parseInt(room.timeLimit) + 1) * 1000;
+        room.timer = setTimeout(() => {
+            sendNextQuestion(roomId);
+        }, timeoutMs);
+    }
 }
 
 const PORT = process.env.PORT || 3000;
