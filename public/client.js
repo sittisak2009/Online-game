@@ -2,10 +2,17 @@ const socket = io();
 
 let currentRoomId = null;
 
-const statusEl = document.getElementById('status-text');
+// UI Boxes
+const lobbyBox = document.getElementById('lobby-box');
+const statusBox = document.getElementById('status-box');
 const gameBox = document.getElementById('game-box');
+
+// UI Elements
+const statusText = document.getElementById('status-text');
 const problemEl = document.getElementById('problem');
 const answerInput = document.getElementById('answer');
+const findMatchBtn = document.getElementById('find-match-btn');
+const cancelMatchBtn = document.getElementById('cancel-match-btn');
 const submitBtn = document.getElementById('submit-btn');
 const myScoreEl = document.getElementById('my-score');
 const opponentScoreEl = document.getElementById('opponent-score');
@@ -16,13 +23,30 @@ const modalIcon = document.getElementById('modal-icon');
 const modalTitle = document.getElementById('modal-title');
 const modalDesc = document.getElementById('modal-desc');
 
+// กดหาห้อง
+findMatchBtn.addEventListener('click', () => {
+    lobbyBox.classList.add('hidden');
+    statusBox.classList.remove('hidden');
+    socket.emit('findMatch');
+});
+
+// ยกเลิกหาห้อง
+cancelMatchBtn.addEventListener('click', () => {
+    socket.emit('cancelMatch');
+});
+
+socket.on('matchCancelled', () => {
+    statusBox.classList.add('hidden');
+    lobbyBox.classList.remove('hidden');
+});
+
 socket.on('waiting', (msg) => {
-    statusEl.innerText = msg;
+    statusText.innerText = msg;
 });
 
 socket.on('gameStart', (data) => {
     currentRoomId = data.roomId;
-    document.getElementById('status').classList.add('hidden');
+    statusBox.classList.add('hidden');
     gameBox.classList.remove('hidden');
     problemEl.innerText = data.problem;
     updateScores(data.scores);
@@ -47,7 +71,7 @@ socket.on('gameOver', (data) => {
     modalIcon.innerText = isWinner ? "👑" : "💀";
     modalTitle.innerText = isWinner ? "VICTORY!" : "DEFEAT!";
     modalTitle.className = `text-2xl font-black mb-2 ${isWinner ? 'text-cyan-400' : 'text-rose-500'}`;
-    modalDesc.innerText = isWinner ? "คุณทำคะแนนครบ 50 ก่อน ยอดเยี่ยมมาก!" : "คู่แข่งทำคะแนนถึงเป้าหมายก่อน ลองใหม่อีกครั้ง";
+    modalDesc.innerText = isWinner ? "ชนะแล้ว! คะแนนสะสมครบถ้วน" : "พ่ายแพ้! คู่แข่งทำคะแนนได้ไวกว่า";
     
     modal.classList.remove('hidden');
 });
@@ -56,7 +80,7 @@ socket.on('playerLeft', () => {
     modalIcon.innerText = "🚪";
     modalTitle.innerText = "PLAYER LEFT";
     modalTitle.className = "text-2xl font-black mb-2 text-amber-400";
-    modalDesc.innerText = "คู่แข่งของคุณออกจากการเชื่อมต่อแล้ว";
+    modalDesc.innerText = "คู่แข่งออกจากห้องการแข่งขัน";
     modal.classList.remove('hidden');
 });
 
