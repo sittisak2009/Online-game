@@ -10,82 +10,79 @@ const io = new Server(server);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ---------------- 1. Mock Database & API Routes ----------------
-// หมายเหตุ: ในอนาคตสามารถเปลี่ยน Array นี้ให้เชื่อมต่อกับ Supabase หรือ Database จริงได้ครับ
-const usersDB = [];
+// ⚠️ วางลิงก์ SheetDB ของนายแทนที่ตรงนี้ได้เลยครับ
+const SHEETDB_URL = 'https://sheetdb.io/api/v1/yt7phya14ic0d';
 
-// API: Register
-app.post('/api/register', (req, res) => {
+// API: Register (บันทึกลง SheetDB)
+app.post('/api/register', async (req, res) => {
     const { username, password, country } = req.body;
-    
-    if (!username || !password) {
-        return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบถ้วน' });
+    try {
+        const checkRes = await fetch(SHEETDB_URL);
+        const users = await checkRes.json();
+        
+        if (Array.isArray(users) && users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase())) {
+            return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' });
+        }
+
+        const newUser = { data: [{ username, password, country: country || 'TH', wins: 0, total_games: 0 }] };
+        await fetch(SHEETDB_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newUser)
+        });
+
+        res.json({ success: true, user: { username, country: country || 'TH' } });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'เชื่อมต่อ SheetDB ไม่สำเร็จ' });
     }
-
-    const existingUser = usersDB.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (existingUser) {
-        return res.status(400).json({ success: false, message: 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' });
-    }
-
-    const newUser = {
-        id: usersDB.length + 1,
-        username,
-        password, // แนะนำให้ใช้ bcrypt ในระบบจริง
-        country: country || 'TH',
-        wins: 0,
-        total_games: 0
-    };
-
-    usersDB.push(newUser);
-    return res.json({ success: true, user: { username: newUser.username, country: newUser.country } });
 });
 
-// API: Login
-app.post('/api/login', (req, res) => {
+// API: Login (เช็คจาก SheetDB)
+app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
+    try {
+        const checkRes = await fetch(SHEETDB_URL);
+        const users = await checkRes.json();
+        const user = Array.isArray(users) ? users.find(u => u.username === username && u.password === password) : null;
 
-    const user = usersDB.find(u => u.username.toLowerCase() === username.toLowerCase() && u.password === password);
-    
-    if (!user) {
-        // หากยังไม่ได้สมัคร ให้สร้างสิทธิ์เข้าเล่นชั่วคราว/เข้าสู่ระบบได้ทันทีเพื่อทดสอบง่ายขึ้น
-        const tempUser = { username, country: 'TH' };
-        return res.json({ success: true, user: tempUser });
+        if (user) {
+            res.json({ success: true, user: { username: user.username, country: user.country } });
+        } else {
+            res.status(400).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
+        }
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'เชื่อมต่อ SheetDB ไม่สำเร็จ' });
     }
-
-    return res.json({ success: true, user: { username: user.username, country: user.country } });
 });
 
-// API: Leaderboard
-app.get('/api/leaderboard', (req, res) => {
+// API: Leaderboard (ดึงจาก SheetDB)
+app.get('/api/leaderboard', async (req, res) => {
     const { country } = req.query;
-    let list = [...usersDB];
+    try {
+        const checkRes = await fetch(SHEETDB_URL);
+        let users = await checkRes.json();
 
-    if (country && country !== 'ALL') {
-        list = list.filter(u => u.country === country);
+        if (!Array.isArray(users)) users = [];
+
+        if (country && country !== 'ALL') {
+            users = users.filter(u => u.country === country);
+        }
+
+        users.sort((a, b) => (Number(b.wins) || 0) - (Number(a.wins) || 0));
+        res.json(users);
+    } catch (err) {
+        res.json([]);
     }
-
-    // เรียงตามจำนวนชนะ (Wins)
-    list.sort((a, b) => b.wins - a.wins);
-
-    res.json(list.map(u => ({
-        username: u.username,
-        country: u.country,
-        wins: u.wins,
-        total_games: u.total_games
-    })));
 });
 
-// ---------------- 2. Socket.io Matchmaking & Game Logic ----------------
+// ---------------- Socket.io Game Engine ----------------
 let waitingQueue = [];
 let rooms = {};
 
 io.on('connection', (socket) => {
-    console.log('Player connected:', socket.id);
-
     socket.on('findMatch', (data) => {
         const player = { socketId: socket.id, user: data.user, config: data.config };
         
-        // ค้นหาคนในคิวที่มี Config ตรงกัน
         const matchIndex = waitingQueue.findIndex(p => 
             p.config.diff === player.config.diff &&
             p.config.time === player.config.time &&
@@ -101,7 +98,8 @@ io.on('connection', (socket) => {
                 scores: [0, 0],
                 currentQ: 0,
                 totalQ: parseInt(player.config.questions) || 10,
-                timeLimit: player.config.time
+                timeLimit: player.config.time,
+                diff: player.config.diff
             };
 
             socket.join(roomId);
@@ -118,12 +116,26 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('cancelMatch', () => {
-        waitingQueue = waitingQueue.filter(p => p.socketId !== socket.id);
+    socket.on('submitAnswer', (data) => {
+        const room = rooms[data.roomId];
+        if (!room) return;
+
+        if (data.answer === room.currentAnswer) {
+            const playerIndex = room.players.findIndex(p => p.socketId === socket.id);
+            if (playerIndex !== -1) {
+                room.scores[playerIndex] += 1;
+                io.to(data.roomId).emit('updateScore', room.scores);
+                sendNextQuestion(data.roomId);
+            }
+        }
     });
 
     socket.on('sendEmote', (data) => {
         io.to(data.roomId).emit('receiveEmote', data);
+    });
+
+    socket.on('cancelMatch', () => {
+        waitingQueue = waitingQueue.filter(p => p.socketId !== socket.id);
     });
 
     socket.on('disconnect', () => {
@@ -142,14 +154,30 @@ function sendNextQuestion(roomId) {
     }
 
     room.currentQ++;
-    const num1 = Math.floor(Math.random() * 20) + 1;
-    const num2 = Math.floor(Math.random() * 20) + 1;
-    
+    let num1 = Math.floor(Math.random() * 10) + 1;
+    let num2 = Math.floor(Math.random() * 10) + 1;
+    let op = '+';
+
+    if (room.diff === 'medium') {
+        num1 = Math.floor(Math.random() * 20) + 1;
+        num2 = Math.floor(Math.random() * 20) + 1;
+        op = ['+', '-', '*'][Math.floor(Math.random() * 3)];
+    } else if (room.diff === 'hard') {
+        num1 = Math.floor(Math.random() * 50) + 1;
+        num2 = Math.floor(Math.random() * 20) + 1;
+        op = ['+', '-', '*'][Math.floor(Math.random() * 3)];
+    }
+
+    let ans = num1 + num2;
+    if (op === '-') ans = num1 - num2;
+    if (op === '*') ans = num1 * num2;
+
+    room.currentAnswer = ans;
+
     io.to(roomId).emit('newQuestion', {
         qIndex: room.currentQ,
         totalQ: room.totalQ,
-        question: `${num1} + ${num2}`,
-        answer: num1 + num2,
+        question: `${num1} ${op} ${num2}`,
         timeLimit: room.timeLimit
     });
 }
