@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // 📌 ใส่ API URL จาก SheetDB ที่นี่ครับนาย
-const SHEETDB_URL = 'https://docs.google.com/spreadsheets/d/1E-63jzsxZOAAhScSZPdNHyDr1eEmYMmxL4vDSoG9zHk/edit#gid=0';
+const SHEETDB_URL = 'https://sheetdb.io/api/v1/yt7phya14ic0d';
 
 const db = new sqlite3.Database('game_v2.db');
 
