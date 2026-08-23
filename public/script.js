@@ -151,7 +151,13 @@ socket.on('updateScore', (scores) => {
 
 socket.on('gameOver', (data) => {
     clearInterval(timerInterval);
-    alert(`จบเกม! คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`);
+    
+    if (data.message) {
+        alert(data.message);
+    } else {
+        alert(`จบเกม! คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`);
+    }
+    
     document.getElementById('game-box').classList.add('hidden');
     document.getElementById('lobby-box').classList.remove('hidden');
 });
@@ -195,3 +201,4 @@ socket.on('receiveEmote', (data) => {
     targetArea.appendChild(pop);
     setTimeout(() => pop.remove(), 1200);
 });
+        
