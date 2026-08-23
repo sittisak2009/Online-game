@@ -30,13 +30,12 @@
 
             <div class="form-group hidden" id="country-group">
                 <label>ประเทศ</label>
-                <select id="auth-country">
-                    <option value="TH">🇹🇭 ไทย</option>
-                    <option value="LA">🇱🇦 ลาว</option>
-                    <option value="VN">🇻🇳 เวียดนาม</option>
-                    <option value="KH">🇰🇭 กัมพูชา</option>
-                    <option value="MM">🇲🇲 เมียนมา</option>
-                    <option value="MY">🇲🇾 มาเลเซีย</option>
+                <select id="lb-country-filter" onchange="getLeaderboard()" style="width: auto; padding: 6px 10px;">
+                  <option value="ALL">🌐 Global (ทั่วโลก)</option>
+                  <option value="TH">🇹🇭 ไทย</option>
+                  <option value="US">🇺🇸 สหรัฐอเมริกา</option>
+                  <option value="GB">🇬🇧 สหราชอาณาจักร</option>
+                  <option value="RU">🇷🇺 รัสเซีย</option>
                 </select>
             </div>
 
