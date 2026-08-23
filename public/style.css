@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;600;800&display=swap');
 
 * {
     box-sizing: border-box;
@@ -8,8 +8,8 @@
 }
 
 body {
-    background: #0d1117;
-    color: #e6edf3;
+    background: radial-gradient(circle at top right, #1a0933, #080b12 80%);
+    color: #ffffff;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -18,92 +18,167 @@ body {
 
 .container {
     width: 100%;
-    max-width: 440px;
-    padding: 20px;
+    max-width: 420px;
+    padding: 16px;
 }
 
 .card {
-    background: rgba(22, 27, 34, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
+    background: rgba(15, 20, 32, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
     padding: 24px;
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
     text-align: center;
 }
 
 .hidden { display: none; }
 
-h2, h3 { margin-bottom: 16px; color: #58a6ff; }
+/* Header Logo */
+.logo-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    font-style: italic;
+    background: linear-gradient(90deg, #00d2ff, #a044ff, #ff416c);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.subtitle {
+    color: #6c7a9c;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+}
+
+/* Tabs */
+.tab-group {
+    display: flex;
+    border-bottom: 2px solid #1e2638;
+    margin-bottom: 20px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: transparent;
+    border: none;
+    color: #6c7a9c;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    border-radius: 0;
+}
+
+.tab-btn.active {
+    color: #00d2ff;
+    border-bottom: 2px solid #00d2ff;
+}
+
+/* Inputs & Form */
+.form-group {
+    text-align: left;
+    margin-bottom: 12px;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    color: #00d2ff;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+}
 
 input, select {
     width: 100%;
     padding: 12px 16px;
-    margin: 8px 0;
     border-radius: 12px;
-    border: 1px solid #30363d;
-    background: #161b22;
+    border: 1px solid #1e2638;
+    background: #090d16;
     color: #fff;
-    font-size: 1rem;
+    font-size: 0.95rem;
     outline: none;
-    transition: 0.2s;
 }
 
 input:focus, select:focus {
-    border-color: #58a6ff;
-    box-shadow: 0 0 8px rgba(88, 166, 255, 0.3);
+    border-color: #00d2ff;
 }
 
-button {
+.inner-box {
+    background: #090d16;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #1a2233;
+}
+
+/* Buttons */
+.btn-primary {
     width: 100%;
-    padding: 12px;
-    margin: 8px 0;
-    border-radius: 12px;
+    padding: 14px;
+    border-radius: 14px;
     border: none;
-    background: #238636;
-    color: #fff;
-    font-size: 1rem;
-    font-weight: 600;
+    background: #00b4d8;
+    color: #000;
+    font-size: 1.05rem;
+    font-weight: 800;
     cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 180, 216, 0.3);
     transition: 0.2s;
 }
 
-button:hover { background: #2ea043; transform: translateY(-1px); }
+.btn-primary:hover {
+    background: #48cae4;
+    transform: translateY(-2px);
+}
 
-.btn-sec { background: #21262d; border: 1px solid #30363d; }
-.btn-sec:hover { background: #30363d; }
+.btn-secondary {
+    background: #1a2233;
+    color: #ffb703;
+    border: 1px solid #2a354d;
+    box-shadow: none;
+}
 
-.btn-start { background: #1f6beb; }
-.btn-start:hover { background: #388bfd; }
+.btn-row {
+    display: flex;
+    gap: 10px;
+}
 
-.btn-group { display: flex; gap: 10px; }
+/* Leaderboard Table */
+.lb-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
 
-.error-text { color: #f85149; font-size: 0.85rem; margin-top: 6px; }
+.lb-table th {
+    color: #6c7a9c;
+    padding: 8px;
+    border-bottom: 1px solid #1a2233;
+    font-weight: 600;
+}
 
-/* Rank Badges */
-.rank-badge { padding: 4px 10px; border-radius: 12px; font-weight: bold; font-size: 0.85rem; display: inline-block; }
-.rank-bronze { background: #cd7f32; color: #fff; }
-.rank-silver { background: #c0c0c0; color: #333; }
-.rank-gold { background: #ffd700; color: #333; }
-.rank-diamond { background: #00ffff; color: #000; box-shadow: 0 0 8px #00ffff; }
-.rank-master { background: linear-gradient(45deg, #ff007f, #7928ca); color: #fff; }
+.lb-table td {
+    padding: 10px 8px;
+    border-bottom: 1px solid #121824;
+}
 
-/* Arena Layout */
-.arena-header { display: flex; justify-content: space-between; font-weight: 600; color: #8b949e; margin-bottom: 12px; }
+.rank-1 { color: #ffb703; font-weight: bold; }
+.rank-2 { color: #00d2ff; font-weight: bold; }
 
-#arena-area { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; position: relative; }
-.player-card { background: #21262d; border: 1px solid #30363d; padding: 12px; border-radius: 14px; width: 42%; position: relative; }
-.score { font-size: 2rem; font-weight: bold; color: #e3b341; }
-.vs-text { font-weight: bold; color: #f85149; font-size: 1.2rem; }
-
-.problem-display { font-size: 2.8rem; font-weight: bold; margin: 15px 0; color: #58a6ff; letter-spacing: 2px; }
-
-/* Emote Bar */
-.emote-bar { display: flex; gap: 6px; margin: 8px 0; }
-.emote-bar button { width: auto; flex: 1; padding: 6px; font-size: 1.2rem; background: #21262d; border: 1px solid #30363d; }
+/* Emote Bar & Effects */
+.emote-bar { display: flex; gap: 6px; margin: 10px 0; }
+.emote-bar button { width: auto; flex: 1; padding: 6px; font-size: 1.2rem; background: #090d16; border: 1px solid #1a2233; }
 .emote-pop { position: absolute; font-size: 2.5rem; animation: floatUp 1.2s forwards ease-out; pointer-events: none; }
 @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.8); } 100% { opacity: 0; transform: translateY(-50px) scale(1.2); } }
 
-/* Screen Shake Effect */
 .shake { animation: shakeAnim 0.3s ease-in-out; }
 @keyframes shakeAnim { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
