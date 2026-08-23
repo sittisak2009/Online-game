@@ -36,7 +36,8 @@ findMatchBtn.addEventListener('click', () => {
     lobbyBox.classList.add('hidden');
     statusBox.classList.remove('hidden');
     
-    matchInfo.innerText = `เงื่อนไข: ความยาก [${diff}] | เวลา [${time}s]`;
+    const timeText = time === 'unlimited' ? 'ไม่จำกัดเวลา' : `${time}s`;
+    matchInfo.innerText = `เงื่อนไข: ความยาก [${diff}] | เวลา [${timeText}]`;
     socket.emit('findMatch', { difficulty: diff, timeLimit: time });
 });
 
@@ -62,7 +63,13 @@ socket.on('gameStart', (data) => {
     answerInput.focus();
 });
 
-socket.on('timerUpdate', ({ timeLeft, maxTime }) => {
+socket.on('timerUpdate', ({ timeLeft, maxTime, isUnlimited }) => {
+    if (isUnlimited) {
+        timerBar.style.width = '100%';
+        timerBar.className = "bg-indigo-500 h-full rounded-full transition-all duration-200";
+        return;
+    }
+
     const percentage = (timeLeft / maxTime) * 100;
     timerBar.style.width = `${percentage}%`;
     
