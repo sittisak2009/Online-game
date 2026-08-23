@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Battle Online ⚔️</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="card">
+        <h2>⚔️ Math Battle</h2>
+        <div id="status" class="status-text">กำลังเชื่อมต่อกับเซิร์ฟเวอร์...</div>
+
+        <div id="game-box" style="display: none;">
+            <div class="scores">
+                <div class="score-item">คุณ: <span id="my-score">0</span></div>
+                <div class="score-item">คู่แข่ง: <span id="opponent-score">0</span></div>
+            </div>
+            
+            <div class="question" id="problem">?-?</div>
+            
+            <input type="number" id="answer" placeholder="พิมพ์คำตอบที่นี่" autofocus autocomplete="off">
+            <br>
+            <button id="submit-btn">ส่งคำตอบ</button>
+        </div>
+    </div>
+
+    <!-- โหลดไลบรารี Socket.io ฝั่ง Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
