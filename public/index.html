@@ -3,82 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Math Battle Online</title>
+    <title>MATH ARENA 1v1</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <!-- Auth Box -->
         <div id="auth-box" class="card">
-            <h2>🔐 เข้าสู่ระบบ</h2>
-            <input type="text" id="auth-username" placeholder="ชื่อผู้ใช้">
-            <input type="password" id="auth-password" placeholder="รหัสผ่าน">
-            <select id="auth-country">
-                <option value="TH">🇹🇭 ไทย</option>
-                <option value="UK">🇬🇧 สหราชอาณาจักร</option>
-                <option value="US">🇺🇸 สหรัฐอเมริกา</option>
-                <option value="GB">🌐 Global</option>
-            </select>
-            <div class="btn-group">
-                <button onclick="login()">เข้าสู่ระบบ</button>
-                <button onclick="register()" class="btn-sec">สมัครสมาชิก</button>
+            <div class="logo-title">⚔️ MATH ARENA 1v1</div>
+            <div class="subtitle">GUEST</div>
+
+            <div class="tab-group">
+                <button class="tab-btn active" id="tab-login-btn" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+                <button class="tab-btn" id="tab-reg-btn" onclick="switchTab('reg')">ลงทะเบียน</button>
             </div>
-            <p id="auth-error" class="error-text"></p>
+
+            <div class="form-group">
+                <label>ชื่อผู้ใช้</label>
+                <input type="text" id="auth-username" placeholder="กรอกชื่อผู้ใช้">
+            </div>
+
+            <div class="form-group">
+                <label>รหัสผ่าน</label>
+                <input type="password" id="auth-password" placeholder="กรอกรหัสผ่าน">
+            </div>
+
+            <div class="form-group hidden" id="country-group">
+                <label>ประเทศ</label>
+                <select id="auth-country">
+                    <option value="TH">🇹🇭 ไทย</option>
+                    <option value="LA">🇱🇦 ลาว</option>
+                    <option value="VN">🇻🇳 เวียดนาม</option>
+                    <option value="KH">🇰🇭 กัมพูชา</option>
+                    <option value="MM">🇲🇲 เมียนมา</option>
+                    <option value="MY">🇲🇾 มาเลเซีย</option>
+                </select>
+            </div>
+
+            <button onclick="handleAuthSubmit()" class="btn-primary" id="auth-submit-btn" style="margin-top: 15px;">เข้าสู่สนามรบ 🚀</button>
+            <p id="auth-error" style="color: #ff416c; font-size: 0.85rem; margin-top: 8px;"></p>
         </div>
 
         <!-- Lobby Box -->
         <div id="lobby-box" class="card hidden">
-            <div style="margin-bottom: 12px;">
-                <h3>สวัสดีคุณ <span id="display-user"></span></h3>
-                <span id="display-rank" class="rank-badge">Bronze 🥉</span>
+            <div class="logo-title">⚔️ MATH ARENA 1v1</div>
+            <div class="subtitle">🎮 <span id="display-user">Player</span> (<span id="display-country">TH</span>)</div>
+
+            <div class="inner-box">
+                <div class="form-group">
+                    <label>ระดับความยาก</label>
+                    <select id="diff-select">
+                        <option value="easy">ง่าย (บวก-ลบ)</option>
+                        <option value="medium" selected>ปานกลาง (บวก-ลบ-คูณ)</option>
+                        <option value="hard">ยาก (บวก-ลบ-คูณ-หาร)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>เวลาต่อข้อ</label>
+                    <select id="time-select">
+                        <option value="5">5 วินาที</option>
+                        <option value="10" selected>10 วินาที (กำลังดี)</option>
+                        <option value="15">15 วินาที</option>
+                        <option value="unlimited">ไม่จำกัดเวลา</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>จำนวนข้อ</label>
+                    <select id="q-select">
+                        <option value="5">5 ข้อ</option>
+                        <option value="10" selected>10 ข้อ (มาตรฐาน)</option>
+                        <option value="20">20 ข้อ</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="text-align: left;">
-                <label>ระดับความยาก:</label>
-                <select id="diff-select">
-                    <option value="easy">ง่าย (บวก/ลบ ไม่เกิน 20)</option>
-                    <option value="medium">ปานกลาง (คูณเลข 2 หลัก)</option>
-                    <option value="hard">ยาก (หาร/คูณผสม)</option>
-                </select>
+            <div class="btn-row">
+                <button onclick="findMatch()" class="btn-primary" style="flex: 1.2;">⚔️ ค้นหาห้องแข่ง</button>
+                <button onclick="getLeaderboard()" class="btn-primary btn-secondary" style="flex: 1;">🏆 ตารางอันดับ</button>
+            </div>
 
-                <label>เวลาต่อข้อ:</label>
-                <select id="time-select">
-                    <option value="5">5 วินาที</option>
-                    <option value="10" selected>10 วินาที</option>
-                    <option value="15">15 วินาที</option>
-                    <option value="unlimited">ไม่จำกัดเวลา</option>
-                </select>
+            <div id="queue-box" class="inner-box hidden" style="margin-top: 15px; margin-bottom: 0;">
+                <div style="color: #00d2ff; font-weight: bold; margin-bottom: 5px;">กำลังรอคู่ต่อสู้สายสปีดมาท้าดวล...</div>
+                <div id="queue-info" style="font-size: 0.85rem; color: #6c7a9c; margin-bottom: 10px;">โหมด: medium | เวลา: 10s | 10 ข้อ</div>
+                <button onclick="cancelMatch()" style="background: transparent; color: #ff416c; border: none; cursor: pointer; font-weight: bold;">ยกเลิกค้นหา</button>
+            </div>
 
-                <label>จำนวนข้อ:</label>
-                <select id="q-select">
-                    <option value="5">5 ข้อ</option>
-                    <option value="10" selected>10 ข้อ</option>
-                    <option value="20">20 ข้อ</option>
+            <div style="margin-top: 15px;">
+                <a href="#" onclick="location.reload()" style="color: #6c7a9c; text-decoration: none; font-size: 0.85rem;">ออกจากระบบ</a>
+            </div>
+        </div>
+
+        <!-- Leaderboard Box -->
+        <div id="lb-box" class="card hidden">
+            <div class="logo-title">⚔️ MATH ARENA 1v1</div>
+            <div class="subtitle">🎮 <span id="lb-user-name">Player</span></div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3 style="color: #ffb703; margin: 0;">🏆 TOP PLAYERS</h3>
+                <select id="lb-country-filter" onchange="getLeaderboard()" style="width: auto; padding: 6px 10px;">
+                  <option value="ALL">🌐 Global (ทั่วโลก)</option>
+                  <option value="TH">🇹🇭 ไทย</option>
+                  <option value="US">🇺🇸 สหรัฐอเมริกา</option>
+                  <option value="GB">🇬🇧 สหราชอาณาจักร</option>
+                  <option value="RU">🇷🇺 รัสเซีย</option>
                 </select>
             </div>
 
-            <button onclick="findMatch()" class="btn-start">🔍 ค้นหาคู่ดวล</button>
-            <button onclick="getLeaderboard()" class="btn-sec">🏆 ตารางอันดับ</button>
-            <p id="status-text" style="margin-top: 8px; color: #8b949e;"></p>
+            <div class="inner-box" style="padding: 10px;">
+                <table class="lb-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th style="text-align: left;">ชื่อ</th>
+                            <th>ประเทศ</th>
+                            <th>ชนะ</th>
+                            <th>WinRate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lb-list-body"></tbody>
+                </table>
+            </div>
+
+            <button onclick="backToLobby()" class="btn-primary btn-secondary">กลับหน้าหลัก</button>
         </div>
 
         <!-- Game Arena -->
         <div id="game-box" class="card hidden">
-            <div class="arena-header">
+            <div style="display: flex; justify-content: space-between; color: #6c7a9c; font-weight: bold; margin-bottom: 10px;">
                 <div>ข้อที่ <span id="q-num">1</span>/<span id="q-total">10</span></div>
                 <div>⏱️ <span id="time-left">10</span>s</div>
             </div>
 
-            <div id="arena-area">
-                <div class="player-card" id="my-area">
-                    <div id="p1-name" style="font-size: 0.9rem; color: #8b949e;">คุณ</div>
-                    <div class="score" id="p1-score">0</div>
-                    <div id="my-combo" style="color: #ff7b72; font-weight: bold; font-size: 0.8rem;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin: 15px 0;">
+                <div class="inner-box" id="my-area" style="width: 42%; margin: 0; padding: 10px;">
+                    <div id="p1-name" style="font-size: 0.85rem; color: #6c7a9c;">คุณ</div>
+                    <div id="p1-score" style="font-size: 1.8rem; font-weight: bold; color: #ffb703;">0</div>
                 </div>
-                <div class="vs-text">VS</div>
-                <div class="player-card" id="enemy-area">
-                    <div id="p2-name" style="font-size: 0.9rem; color: #8b949e;">คู่ต่อสู้</div>
-                    <div class="score" id="p2-score">0</div>
+                <div style="font-weight: 800; color: #ff416c;">VS</div>
+                <div class="inner-box" id="enemy-area" style="width: 42%; margin: 0; padding: 10px;">
+                    <div id="p2-name" style="font-size: 0.85rem; color: #6c7a9c;">คู่ต่อสู้</div>
+                    <div id="p2-score" style="font-size: 1.8rem; font-weight: bold; color: #ffb703;">0</div>
                 </div>
             </div>
 
@@ -90,16 +156,9 @@
                 <button onclick="sendEmote('⚡')">⚡</button>
             </div>
 
-            <div class="problem-display" id="problem-text">? + ?</div>
+            <div id="problem-text" style="font-size: 2.5rem; font-weight: 800; color: #00d2ff; margin: 15px 0;">? + ?</div>
             <input type="number" id="answer-input" placeholder="พิมพ์คำตอบแล้วกด Enter" autofocus>
-            <button onclick="submitAnswer()" class="btn-start">ตอบ</button>
-        </div>
-
-        <!-- Leaderboard Box -->
-        <div id="lb-box" class="card hidden">
-            <h2>🏆 ตารางอันดับ</h2>
-            <div id="lb-list" style="margin: 15px 0;"></div>
-            <button onclick="backToLobby()" class="btn-sec">กลับหน้าหลัก</button>
+            <button onclick="submitAnswer()" class="btn-primary" style="margin-top: 10px;">ตอบ!</button>
         </div>
     </div>
 
