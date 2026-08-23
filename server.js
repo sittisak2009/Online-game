@@ -44,13 +44,51 @@ function generateProblem(difficulty) {
     return { text, answer };
 }
 
+function nextRound(roomId) {
+    const game = games[roomId];
+    if (!game) return;
+
+    if (game.currentQuestion >= game.totalQuestions) {
+        // เล่นครบทุกข้อแล้ว -> ตัดสินผลการแข่งขัน
+        if (game.timer) clearInterval(game.timer);
+        
+        const p1 = game.p1;
+        const p2 = game.p2;
+        let resultType = 'winner';
+        let winnerId = null;
+
+        if (p1.score > p2.score) winnerId = p1.id;
+        else if (p2.score > p1.score) winnerId = p2.id;
+        else resultType = 'draw'; // เสมอกัน
+
+        io.to(roomId).emit('gameOver', { 
+            resultType: resultType,
+            winnerId: winnerId, 
+            scores: { [p1.id]: p1.score, [p2.id]: p2.score } 
+        });
+        delete games[roomId];
+        return;
+    }
+
+    game.currentQuestion += 1;
+    game.currentProblem = generateProblem(game.difficulty);
+
+    io.to(roomId).emit('nextProblem', {
+        currentQuestion: game.currentQuestion,
+        totalQuestions: game.totalQuestions,
+        problem: game.currentProblem.text,
+        scores: { [game.p1.id]: game.p1.score, [game.p2.id]: game.p2.score }
+    });
+
+    startTimer(roomId);
+}
+
 function startTimer(roomId) {
     const game = games[roomId];
     if (!game) return;
 
     if (game.timer) clearInterval(game.timer);
 
-    // กรณีเลือกไม่จำกัดเวลา
     if (game.timeLimit === 'unlimited') {
         io.to(roomId).emit('timerUpdate', { isUnlimited: true });
         return;
@@ -65,26 +103,25 @@ function startTimer(roomId) {
         io.to(roomId).emit('timerUpdate', { timeLeft: game.timeLeft, maxTime: timeLimitNum, isUnlimited: false });
 
         if (game.timeLeft <= 0) {
-            game.currentProblem = generateProblem(game.difficulty);
-            io.to(roomId).emit('nextProblem', {
-                problem: game.currentProblem.text,
-                scores: { [game.p1.id]: game.p1.score, [game.p2.id]: game.p2.score }
-            });
-            startTimer(roomId);
+            // หมดเวลาข้อนี้ ไปข้อถัดไป
+            nextRound(roomId);
         }
     }, 1000);
 }
 
 io.on('connection', (socket) => {
 
-    socket.on('findMatch', ({ difficulty, timeLimit }) => {
+    socket.on('findMatch', ({ difficulty, timeLimit, totalQuestions }) => {
         matchmakingQueue = matchmakingQueue.filter(p => p.id !== socket.id);
 
         const timeLimitStr = String(timeLimit);
+        const totalQNum = Number(totalQuestions);
 
-        // หาคู่แข่งที่มี difficulty และ timeLimit ตรงกัน
+        // ค้นหาคู่แข่งที่ตรงกันทั้ง Difficulty, Time Limit และ Total Questions
         const opponentIndex = matchmakingQueue.findIndex(
-            p => p.difficulty === difficulty && String(p.timeLimit) === timeLimitStr
+            p => p.difficulty === difficulty && 
+                 String(p.timeLimit) === timeLimitStr && 
+                 Number(p.totalQuestions) === totalQNum
         );
 
         if (opponentIndex !== -1) {
@@ -102,6 +139,8 @@ io.on('connection', (socket) => {
                     p2: { id: socket.id, score: 0 },
                     difficulty: difficulty,
                     timeLimit: timeLimitStr,
+                    totalQuestions: totalQNum,
+                    currentQuestion: 1,
                     timeLeft: timeLimitStr === 'unlimited' ? null : Number(timeLimitStr),
                     currentProblem: generateProblem(difficulty),
                     timer: null
@@ -109,6 +148,8 @@ io.on('connection', (socket) => {
 
                 io.to(roomId).emit('gameStart', {
                     roomId: roomId,
+                    currentQuestion: 1,
+                    totalQuestions: totalQNum,
                     problem: games[roomId].currentProblem.text,
                     scores: { [opponent.id]: 0, [socket.id]: 0 }
                 });
@@ -116,7 +157,7 @@ io.on('connection', (socket) => {
                 startTimer(roomId);
             }
         } else {
-            matchmakingQueue.push({ id: socket.id, difficulty, timeLimit: timeLimitStr });
+            matchmakingQueue.push({ id: socket.id, difficulty, timeLimit: timeLimitStr, totalQuestions: totalQNum });
             socket.emit('waiting', 'กำลังรอผู้เล่นอื่นที่เลือกเงื่อนไขเดียวกัน...');
         }
     });
@@ -134,25 +175,8 @@ io.on('connection', (socket) => {
             if (socket.id === game.p1.id) game.p1.score += 10;
             if (socket.id === game.p2.id) game.p2.score += 10;
 
-            const p1Score = game.p1.score;
-            const p2Score = game.p2.score;
-
-            if (p1Score >= 50 || p2Score >= 50) {
-                if (game.timer) clearInterval(game.timer);
-                const winnerId = p1Score >= 50 ? game.p1.id : game.p2.id;
-                io.to(roomId).emit('gameOver', { 
-                    winnerId: winnerId, 
-                    scores: { [game.p1.id]: p1Score, [game.p2.id]: p2Score } 
-                });
-                delete games[roomId];
-            } else {
-                game.currentProblem = generateProblem(game.difficulty);
-                io.to(roomId).emit('nextProblem', {
-                    problem: game.currentProblem.text,
-                    scores: { [game.p1.id]: p1Score, [game.p2.id]: p2Score }
-                });
-                startTimer(roomId);
-            }
+            // ตอบถูก -> ข้ามไปข้อถัดไป
+            nextRound(roomId);
         } else {
             socket.emit('wrongAnswer');
         }
