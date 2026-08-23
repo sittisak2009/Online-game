@@ -165,24 +165,29 @@ function generateQuestion(diff) {
 }
 
 // ----------------------------------------------------
-// Socket.io Real-time Game Logic & New Features
+// Socket.io Real-time Game Logic & Fixed Matchmaking
 // ----------------------------------------------------
 const rooms = {}; 
-let waitingPlayer = null; 
+const waitingPlayers = {}; // แยกคิวตามการตั้งค่าโหมด (แก้ปัญหาจับคู่ข้ามโหมด)
 
 io.on('connection', (socket) => {
     
-    // ระบบหาห้องดวลปกติ
+    // ระบบหาห้องดวล (แยกคิวตาม Config เป๊ะๆ)
     socket.on('findMatch', ({ user, config }) => {
         socket.user = user;
         socket.gameConfig = config;
 
-        if (!waitingPlayer) {
-            waitingPlayer = socket;
-        } else {
-            const player1 = waitingPlayer;
-            const player2 = socket;
-            waitingPlayer = null;
+        const matchKey = `${config.diff}_${config.questions}_${config.time}`;
+
+        if (!waitingPlayers[matchKey]) {
+            waitingPlayers[matchKey] = [];
+        }
+
+        waitingPlayers[matchKey].push(socket);
+
+        if (waitingPlayers[matchKey].length >= 2) {
+            const player1 = waitingPlayers[matchKey].shift();
+            const player2 = waitingPlayers[matchKey].shift();
 
             const roomId = 'room_' + Date.now();
             player1.join(roomId);
@@ -223,12 +228,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('cancelMatch', () => {
-        if (waitingPlayer === socket) {
-            waitingPlayer = null;
+        for (let key in waitingPlayers) {
+            waitingPlayers[key] = waitingPlayers[key].filter(s => s !== socket);
         }
     });
 
-    // [ฟีเจอร์ใหม่] โหมดฝึกซ้อมคนเดียว (Solo Practice)
+    // โหมดฝึกซ้อมคนเดียว (Solo Practice)
     socket.on('startSoloPractice', ({ config }) => {
         const totalQ = parseInt(config.questions) || 10;
         const questions = [];
@@ -313,7 +318,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        if (waitingPlayer === socket) waitingPlayer = null;
+        for (let key in waitingPlayers) {
+            waitingPlayers[key] = waitingPlayers[key].filter(s => s !== socket);
+        }
     });
 });
 
