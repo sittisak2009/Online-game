@@ -2,18 +2,24 @@ const socket = io();
 
 let currentRoomId = null;
 
-// UI Boxes
+// UI Elements
 const lobbyBox = document.getElementById('lobby-box');
 const statusBox = document.getElementById('status-box');
 const gameBox = document.getElementById('game-box');
 
-// UI Elements
 const statusText = document.getElementById('status-text');
+const matchInfo = document.getElementById('match-info');
 const problemEl = document.getElementById('problem');
 const answerInput = document.getElementById('answer');
+const timerBar = document.getElementById('timer-bar');
+
+const difficultySelect = document.getElementById('difficulty-select');
+const timeSelect = document.getElementById('time-select');
+
 const findMatchBtn = document.getElementById('find-match-btn');
 const cancelMatchBtn = document.getElementById('cancel-match-btn');
 const submitBtn = document.getElementById('submit-btn');
+
 const myScoreEl = document.getElementById('my-score');
 const opponentScoreEl = document.getElementById('opponent-score');
 
@@ -23,14 +29,17 @@ const modalIcon = document.getElementById('modal-icon');
 const modalTitle = document.getElementById('modal-title');
 const modalDesc = document.getElementById('modal-desc');
 
-// กดหาห้อง
 findMatchBtn.addEventListener('click', () => {
+    const diff = difficultySelect.value;
+    const time = timeSelect.value;
+
     lobbyBox.classList.add('hidden');
     statusBox.classList.remove('hidden');
-    socket.emit('findMatch');
+    
+    matchInfo.innerText = `เงื่อนไข: ความยาก [${diff}] | เวลา [${time}s]`;
+    socket.emit('findMatch', { difficulty: diff, timeLimit: time });
 });
 
-// ยกเลิกหาห้อง
 cancelMatchBtn.addEventListener('click', () => {
     socket.emit('cancelMatch');
 });
@@ -53,6 +62,17 @@ socket.on('gameStart', (data) => {
     answerInput.focus();
 });
 
+socket.on('timerUpdate', ({ timeLeft, maxTime }) => {
+    const percentage = (timeLeft / maxTime) * 100;
+    timerBar.style.width = `${percentage}%`;
+    
+    if (percentage <= 30) {
+        timerBar.className = "bg-rose-500 h-full rounded-full transition-all duration-200";
+    } else {
+        timerBar.className = "bg-cyan-400 h-full rounded-full transition-all duration-200";
+    }
+});
+
 socket.on('nextProblem', (data) => {
     problemEl.innerText = data.problem;
     answerInput.value = '';
@@ -71,7 +91,7 @@ socket.on('gameOver', (data) => {
     modalIcon.innerText = isWinner ? "👑" : "💀";
     modalTitle.innerText = isWinner ? "VICTORY!" : "DEFEAT!";
     modalTitle.className = `text-2xl font-black mb-2 ${isWinner ? 'text-cyan-400' : 'text-rose-500'}`;
-    modalDesc.innerText = isWinner ? "ชนะแล้ว! คะแนนสะสมครบถ้วน" : "พ่ายแพ้! คู่แข่งทำคะแนนได้ไวกว่า";
+    modalDesc.innerText = isWinner ? "ชนะแล้ว! ทำคะแนนถึงเป้าหมายก่อน" : "แพ้แล้ว! คู่แข่งทำคะแนนได้เร็วกว่า";
     
     modal.classList.remove('hidden');
 });
@@ -80,7 +100,7 @@ socket.on('playerLeft', () => {
     modalIcon.innerText = "🚪";
     modalTitle.innerText = "PLAYER LEFT";
     modalTitle.className = "text-2xl font-black mb-2 text-amber-400";
-    modalDesc.innerText = "คู่แข่งออกจากห้องการแข่งขัน";
+    modalDesc.innerText = "คู่แข่งของคุณออกจากเกม";
     modal.classList.remove('hidden');
 });
 
