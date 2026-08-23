@@ -6,6 +6,17 @@ let currentRoom = null;
 let myIndex = null;
 let timerInterval = null;
 
+function showModal(title, msg, icon = '🏆') {
+    document.getElementById('modal-title').innerText = title;
+    document.getElementById('modal-msg').innerText = msg;
+    document.getElementById('modal-icon').innerText = icon;
+    document.getElementById('modal-box').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('modal-box').classList.add('hidden');
+}
+
 function switchTab(tab) {
     currentTab = tab;
     document.getElementById('tab-login-btn').classList.toggle('active', tab === 'login');
@@ -153,9 +164,9 @@ socket.on('gameOver', (data) => {
     clearInterval(timerInterval);
     
     if (data.message) {
-        alert(data.message);
+        showModal('ชนะบาย! 🎉', data.message, '👑');
     } else {
-        alert(`จบเกม! คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`);
+        showModal('จบการแข่งขัน! 🏁', `คะแนนของคุณ: ${data.scores[myIndex]} คะแนน`, '⚔️');
     }
     
     document.getElementById('game-box').classList.add('hidden');
@@ -201,4 +212,3 @@ socket.on('receiveEmote', (data) => {
     targetArea.appendChild(pop);
     setTimeout(() => pop.remove(), 1200);
 });
-        
