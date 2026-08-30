@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fresh Export Logistics - Game</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; }
+    body { background-color: #1e1e24; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    /* Top Stats Bar */
+    #top-bar {
+      height: 50px; background: #2b2d42; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 2px solid #3d405b;
+    }
+    .stat-item { font-size: 14px; font-weight: bold; color: #f4a261; }
+    .stat-value { color: #2ecc71; }
+
+    /* Main View Area */
+    #game-container { flex: 1; relative: position; background: #111; overflow: hidden; position: relative; }
+    .page { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; padding: 20px; box-sizing: border-box; overflow-y: auto; }
+    .page.active { display: block; }
+
+    /* Canvas Game Screen */
+    #gameCanvas { display: block; width: 100%; height: 100%; background: #222; }
+
+    /* UI Cards & Lists */
+    .card { background: #2b2d42; border-radius: 8px; padding: 15px; margin-bottom: 15px; border-left: 5px solid #8d99ae; }
+    .card-hotel { border-left-color: #2ecc71; }
+    .card-market { border-left-color: #f1c40f; }
+    .btn { background: #e76f51; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    .btn:hover { background: #f4a261; }
+    
+    /* Temp Control UI */
+    .temp-control { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .temp-indicator { font-weight: bold; padding: 3px 8px; border-radius: 4px; }
+    .grade-green { background: #2ecc71; color: #000; }
+    .grade-yellow { background: #f1c40f; color: #000; }
+    .grade-red { background: #e74c3c; color: #fff; }
+
+    /* Bottom Navigation Bar */
+    #bottom-nav {
+      height: 65px; background: #2b2d42; display: flex; border-top: 2px solid #3d405b;
+    }
+    .nav-btn {
+      flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: #8d99ae; font-size: 12px; cursor: pointer; transition: 0.2s;
+    }
+    .nav-btn.active { color: #2ecc71; font-weight: bold; background: #3d405b; }
+    .nav-btn span { font-size: 18px; margin-bottom: 3px; }
+
+    /* Modal / Auth Screen Overlay */
+    #auth-overlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 100;
+    }
+    .auth-box { background: #2b2d42; padding: 30px; border-radius: 10px; width: 320px; text-align: center; }
+    .auth-box input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: 1px solid #3d405b; background: #1e1e24; color: white; }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Screen -->
+  <div id="auth-overlay">
+    <div class="auth-box">
+      <h2>เข้าสู่ระบบ / ลงทะเบียน</h2>
+      <p style="font-size: 12px; color: #8d99ae; margin-top: 5px;">ส่งออกพืชผลควบคุมอุณหภูมิ</p>
+      <input type="text" id="username-input" placeholder="กรอกชื่อผู้เล่น..." value="CEO_Player">
+      <button class="btn" style="width: 100%; padding: 10px;" onclick="login()">เริ่มเกม / เข้าสู่ระบบ</button>
+    </div>
+  </div>
+
+  <!-- Top Bar -->
+  <div id="top-bar">
+    <div class="stat-item">ID: <span id="display-id" class="stat-value">10000001</span></div>
+    <div class="stat-item">เงินสะสม: <span id="display-money" class="stat-value">$1,000</span></div>
+  </div>
+
+  <!-- Game Main Screen -->
+  <div id="game-container">
+    
+    <!-- Tab 1: Game Warehouse Canvas -->
+    <div id="page-game" class="page active" style="padding:0;">
+      <canvas id="gameCanvas"></canvas>
+      <div style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 5px; font-size: 12px;">
+        🎮 ใช้ปุ่ม <b>W A S D</b> หรือ <b>ลูกศร</b> เพื่อเดินในคลังสินค้า
+      </div>
+    </div>
+
+    <!-- Tab 2: Orders -->
+    <div id="page-orders" class="page">
+      <h2>📋 คำสั่งซื้อสินค้า (Orders)</h2>
+      <p style="font-size: 12px; color: #8d99ae; margin-bottom: 15px;">เลือกออร์เดอร์และเตรียมจัดส่งด้วยอุณหภูมิที่เหมาะสม</p>
+      <div id="orders-list"></div>
+    </div>
+
+    <!-- Tab 3: Export Line -->
+    <div id="page-export" class="page">
+      <h2>🚚 ไลน์การส่งออก (Export Line)</h2>
+      <p style="font-size: 12px; color: #8d99ae; margin-bottom: 15px;">ปรับอุณหภูมิตู้ตู้คอนเทนเนอร์เพื่อรักษาเกรดสินค้า</p>
+      <div id="export-list"></div>
+    </div>
+
+    <!-- Tab 4: Leaderboard -->
+    <div id="page-leaderboard" class="page">
+      <h2>🏆 ตารางอันดับ (% รายได้)</h2>
+      <div style="margin-top: 15px;">
+        <div class="card" style="display: flex; justify-content: space-between;">
+          <span>🥇 อันดับ 1: Global Crop Corp</span>
+          <span style="color: #2ecc71;">+45.2%</span>
+        </div>
+        <div class="card" style="display: flex; justify-content: space-between;">
+          <span>🥈 อันดับ 2: Express Fresh Co.</span>
+          <span style="color: #2ecc71;">+32.8%</span>
+        </div>
+        <div class="card" style="display: flex; justify-content: space-between; border-left-color: #2ecc71;">
+          <span>🥉 อันดับ 3: <b id="lb-player-name">CEO_Player</b> (คุณ)</span>
+          <span style="color: #2ecc71;" id="lb-player-percent">+12.5%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 5: Profile -->
+    <div id="page-profile" class="page">
+      <h2>👤 โปรไฟล์ผู้เล่น</h2>
+      <div class="card" style="margin-top: 15px;">
+        <p><b>ไอดีเกม:</b> <span id="prof-id">10000001</span></p><br>
+        <p><b>เข้าใช้งานล่าสุด:</b> <span id="prof-login-time">-</span></p><br>
+        <label><b>ชื่อบริษัท/ผู้เล่น:</b></label>
+        <input type="text" id="edit-name-input" style="width: 100%; padding: 8px; margin: 8px 0; border-radius: 4px; border: 1px solid #444; background: #111; color: white;">
+        <button class="btn" onclick="updateProfileName()">บันทึกการเปลี่ยนชื่อ</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom Nav -->
+  <div id="bottom-nav">
+    <button class="nav-btn active" onclick="switchTab('game', this)"><span>🏢</span>คลังสินค้า</button>
+    <button class="nav-btn" onclick="switchTab('orders', this)"><span>📦</span>ออร์เดอร์</button>
+    <button class="nav-btn" onclick="switchTab('export', this)"><span>🚚</span>ไลน์ส่งออก</button>
+    <button class="nav-btn" onclick="switchTab('leaderboard', this)"><span>🏆</span>อันดับ</button>
+    <button class="nav-btn" onclick="switchTab('profile', this)"><span>👤</span>โปรไฟล์</button>
+  </div>
+
+<script>
+  // --- Game Data State ---
+  let playerData = {
+    id: 10000001,
+    name: "CEO_Player",
+    money: 1000,
+    lastLogin: "",
+    incomePercent: 12.5
+  };
+
+  let orders = [
+    { id: 101, type: "hotel", name: "โรงแรมหรู Grand Palace", item: "สตรอว์เบอร์รีสด", qty: 5000, targetTemp: 4, reqGrade: "GREEN", reward: 25000 },
+    { id: 102, type: "market", name: "ตลาดสดไทมาร์เก็ต", item: "กล้วยหอมทอง", qty: 12000, targetTemp: 13, reqGrade: "YELLOW", reward: 18000 }
+  ];
+
+  let activeExports = [];
+
+  // --- Auth & Profile System ---
+  function login() {
+    const nameInput = document.getElementById('username-input').value.trim();
+    
+    // โหลดข้อมูลเก่าถ้ามี
+    const savedData = localStorage.getItem('export_game_user');
+    if (savedData) {
+      playerData = JSON.parse(savedData);
+    } else {
+      playerData.id = 10000001; // ID เริ่มต้น
+      playerData.money = 1000;
+    }
+
+    if (nameInput) playerData.name = nameInput;
+    playerData.lastLogin = new Date().toLocaleString('th-TH');
+
+    saveData();
+    updateUI();
+
+    document.getElementById('auth-overlay').style.display = 'none';
+    initCanvasGame();
+  }
+
+  function saveData() {
+    localStorage.setItem('export_game_user', JSON.stringify(playerData));
+  }
+
+  function updateUI() {
+    document.getElementById('display-id').innerText = playerData.id;
+    document.getElementById('display-money').innerText = '$' + playerData.money.toLocaleString();
+    document.getElementById('prof-id').innerText = playerData.id;
+    document.getElementById('prof-login-time').innerText = playerData.lastLogin;
+    document.getElementById('edit-name-input').value = playerData.name;
+    document.getElementById('lb-player-name').innerText = playerData.name;
+    document.getElementById('lb-player-percent').innerText = '+' + playerData.incomePercent.toFixed(1) + '%';
+  }
+
+  function updateProfileName() {
+    const newName = document.getElementById('edit-name-input').value.trim();
+    if (newName) {
+      playerData.name = newName;
+      saveData();
+      updateUI();
+      alert('เปลี่ยนชื่อสำเร็จแล้ว!');
+    }
+  }
+
+  // --- Tab Navigation ---
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    
+    document.getElementById('page-' + tabId).classList.add('active');
+    btn.classList.add('active');
+
+    if(tabId === 'orders') renderOrders();
+    if(tabId === 'export') renderExports();
+  }
+
+  // --- Orders & Export Logic ---
+  function renderOrders() {
+    const container = document.getElementById('orders-list');
+    container.innerHTML = '';
+
+    orders.forEach((ord) => {
+      const card = document.createElement('div');
+      card.className = `card ${ord.type === 'hotel' ? 'card-hotel' : 'card-market'}`;
+      card.innerHTML = `
+        <h3>${ord.type === 'hotel' ? '🏨' : '🛒'} ${ord.name}</h3>
+        <p><b>สินค้า:</b> ${ord.item} (จำนวน ${ord.qty.toLocaleString()} กก.)</p>
+        <p><b>ต้องการเกรด:</b> <span class="temp-indicator ${ord.reqGrade === 'GREEN' ? 'grade-green' : 'grade-yellow'}">${ord.reqGrade === 'GREEN' ? 'สีเขียว (สดใหม่สูง)' : 'สีเหลือง (ราคาถูก)'}</span></p>
+        <p><b>ค่าตอบแทน:</b> <span style="color:#2ecc71">$${ord.reward.toLocaleString()}</span></p>
+        <button class="btn" onclick="startExport(${ord.id})">รับออร์เดอร์และเตรียมรถส่ง</button>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function startExport(orderId) {
+    const ordIndex = orders.findIndex(o => o.id === orderId);
+    if(ordIndex === -1) return;
+
+    const ord = orders[ordIndex];
+    activeExports.push({
+      ...ord,
+      currentTemp: 25, // เริ่มต้นที่อุณหภูมิห้อง
+      status: 'SHIPPING',
+      progress: 0
+    });
+
+    orders.splice(ordIndex, 1);
+    alert('รับออร์เดอร์สำเร็จ! กรุณาไปที่ "ไลน์ส่งออก" เพื่อปรับอุณหภูมิ');
+    renderOrders();
+  }
+
+  function renderExports() {
+    const container = document.getElementById('export-list');
+    container.innerHTML = '';
+
+    if (activeExports.length === 0) {
+      container.innerHTML = '<p style="color:#8d99ae;">ยังไม่มีไลน์การส่งออกที่กำลังรันอยู่</p>';
+      return;
+    }
+
+    activeExports.forEach((exp, idx) => {
+      // คำนวณเกรดสินค้าตามอุณหภูมิ
+      const tempDiff = Math.abs(exp.currentTemp - exp.targetTemp);
+      let currentGrade = 'RED';
+      let gradeClass = 'grade-red';
+      
+      if (tempDiff <= 2) {
+        currentGrade = 'GREEN (สดใหม่)';
+        gradeClass = 'grade-green';
+      } else if (tempDiff <= 6) {
+        currentGrade = 'YELLOW (พอใช้)';
+        gradeClass = 'grade-yellow';
+      } else {
+        currentGrade = 'RED (เน่าเสีย/ไม่มีใครรับ)';
+        gradeClass = 'grade-red';
+      }
+
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3>🚚 ตู้ขนส่งส่งออก #${exp.id} - ${exp.item}</h3>
+        <p>เป้าหมาย: ${exp.name}</p>
+        <div class="temp-control">
+          <span>อุณหภูมิตู้ปัจจุบัน: <b>${exp.currentTemp}°C</b> (เป้าหมาย: ${exp.targetTemp}°C)</span>
+          <button class="btn" style="padding: 2px 8px; margin:0;" onclick="adjustTemp(${idx}, -1)">-1°C</button>
+          <button class="btn" style="padding: 2px 8px; margin:0;" onclick="adjustTemp(${idx}, 1)">+1°C</button>
+        </div>
+        <p style="margin-top: 10px;">เกรดสินค้าขณะนี้: <span class="temp-indicator ${gradeClass}">${currentGrade}</span></p>
+        <button class="btn" style="background:#2ecc71; margin-top:15px;" onclick="deliverGoods(${idx}, '${currentGrade}')">ส่งมอบสินค้า</button>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function adjustTemp(idx, change) {
+    activeExports[idx].currentTemp += change;
+    renderExports();
+  }
+
+  function deliverGoods(idx, gradeText) {
+    const exp = activeExports[idx];
+    
+    if (gradeText.includes('RED')) {
+      alert('❌ สินค้าเน่าเสีย (เกรดสีแดง)! ลูกค้าปฏิเสธการรับสินค้า คุณไม่ได้เงิน');
+    } else if (exp.reqGrade === 'GREEN' && !gradeText.includes('GREEN')) {
+      alert('⚠️ โรงแรมปฏิเสธรับสินค้า! เนื่องจากต้องการเกรดสีเขียวเท่านั้น');
+      return;
+    } else {
+      playerData.money += exp.reward;
+      playerData.incomePercent += 1.5; // เพิ่ม % รายได้
+      saveData();
+      updateUI();
+      alert(`✅ ส่งออกสำเร็จ! รับเงินรางวัล $${exp.reward.toLocaleString()}`);
+    }
+
+    activeExports.splice(idx, 1);
+    renderExports();
+  }
+
+  // --- Canvas 2D Warehouse Game (ขยับตัวละครได้จริง) ---
+  function initCanvasGame() {
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Resize canvas to fit screen
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+
+    let player = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      size: 24,
+      speed: 4,
+      color: '#00ffcc'
+    };
+
+    let keys = {};
+
+    window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+    window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+    function gameLoop() {
+      // Movement Logic
+      if (keys['w'] || keys['arrowup']) player.y -= player.speed;
+      if (keys['s'] || keys['arrowdown']) player.y += player.speed;
+      if (keys['a'] || keys['arrowleft']) player.x -= player.speed;
+      if (keys['d'] || keys['arrowright']) player.x += player.speed;
+
+      // Keep inside boundary
+      player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+      player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+
+      // Draw Warehouse
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Floor Grid
+      ctx.strokeStyle = '#2a2a2a';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+      }
+
+      // Warehouse Cargo Boxes (Obstacles/Props)
+      ctx.fillStyle = '#f4a261';
+      ctx.fillRect(80, 80, 100, 60);
+      ctx.fillRect(canvas.width - 180, 100, 100, 60);
+
+      // Player Character
+      ctx.fillStyle = player.color;
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.size / 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Player Name
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(playerData.name, player.x, player.y - 18);
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  }
+</script>
+</body>
+        </html>
+  
