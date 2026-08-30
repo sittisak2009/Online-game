@@ -3,242 +3,294 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Fresh Export Logistics - Playable Game</title>
+  <title>Fresh Export Online - SheetDB Version</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; user-select: none; }
-    body { background: #121212; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; user-select: none; }
+    body { background: #0f111a; color: #fff; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-    /* Top Stats Bar */
-    #top-bar {
-      height: 45px; background: #1e1e24; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 2px solid #333; font-size: 13px; font-weight: bold;
-    }
-    .val { color: #2ecc71; }
+    /* Top Bar */
+    #top-bar { height: 45px; background: #1a1d2e; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; font-size: 13px; font-weight: bold; border-bottom: 2px solid #2a2e45; }
+    .gold { color: #f1c40f; } .green { color: #2ecc71; }
 
-    /* Game Viewport */
-    #game-container { flex: 1; position: relative; background: #000; overflow: hidden; }
-    canvas { display: block; width: 100%; height: 100%; }
+    /* Main Container & Tabs */
+    #main-screen { flex: 1; position: relative; overflow: hidden; }
+    .tab-page { position: absolute; width: 100%; height: 100%; top: 0; left: 0; display: none; padding: 15px; overflow-y: auto; background: #0f111a; }
+    .tab-page.active { display: block; }
 
-    /* Action Overlay Notification */
-    #action-msg {
-      position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); border: 1px solid #2ecc71; color: #fff;
-      padding: 8px 16px; border-radius: 20px; font-size: 13px; pointer-events: none; text-align: center; display: none;
-    }
+    /* UI Cards & Buttons */
+    .card { background: #1a1d2e; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 4px solid #3b3f5c; }
+    .card.green-board { border-left-color: #2ecc71; }
+    .card.yellow-board { border-left-color: #f1c40f; }
+    .btn { background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+    .btn:active { transform: scale(0.98); }
+    .btn-temp { background: #2980b9; padding: 5px 10px; font-size: 12px; }
 
-    /* On-Screen Mobile Joystick Controls */
-    #touch-controls {
-      position: absolute; bottom: 20px; left: 20px; display: grid; grid-template-columns: repeat(3, 45px); grid-template-rows: repeat(3, 45px); gap: 5px; z-index: 10;
-    }
-    .ctrl-btn {
-      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white;
-      border-radius: 8px; font-size: 18px; font-weight: bold; display: flex; align-items: center; justify-content: center; active { background: #2ecc71; }
-    }
-
-    /* Interactive Action Button */
-    #interact-btn {
-      position: absolute; bottom: 25px; right: 25px; width: 70px; height: 70px;
-      background: #e76f51; border: 2px solid #fff; color: white; border-radius: 50%;
-      font-size: 12px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; z-index: 10; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    }
-    #interact-btn:active { transform: scale(0.95); background: #f4a261; }
+    /* Temp Bar */
+    .temp-bar { height: 12px; background: #333; border-radius: 6px; overflow: hidden; margin: 8px 0; }
+    .temp-fill { height: 100%; width: 50%; transition: 0.2s; }
 
     /* Bottom Nav */
-    #bottom-nav { height: 55px; background: #1e1e24; display: flex; border-top: 1px solid #333; }
-    .nav-btn { flex: 1; background: none; border: none; color: #888; font-size: 11px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-    .nav-btn.active { color: #2ecc71; font-weight: bold; background: #25252e; }
+    #bottom-nav { height: 60px; background: #1a1d2e; display: flex; border-top: 2px solid #2a2e45; }
+    .nav-item { flex: 1; background: none; border: none; color: #7f8c8d; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+    .nav-item.active { color: #2ecc71; font-weight: bold; background: #252940; }
+
+    /* Auth Screen Overlay */
+    #auth-screen { position: fixed; inset: 0; background: #0f111a; z-index: 999; display: flex; align-items: center; justify-content: center; }
+    .auth-box { background: #1a1d2e; padding: 25px; border-radius: 12px; width: 310px; text-align: center; box-shadow: 0 8px 20px rgba(0,0,0,0.6); }
+    .auth-box input { width: 100%; padding: 10px; margin: 8px 0; background: #0f111a; border: 1px solid #333; color: white; border-radius: 6px; }
   </style>
 </head>
 <body>
 
-  <div id="top-bar">
-    <div>ID: <span class="val" id="ui-id">10000001</span></div>
-    <div>เงิน: <span class="val" id="ui-money">$1,000</span></div>
-    <div>พืชผลในตัว: <span class="val" id="ui-crop">0/100</span></div>
+  <div id="auth-screen">
+    <div class="auth-box">
+      <h2 style="color:#2ecc71; margin-bottom: 10px;">Fresh Export (SheetDB)</h2>
+      <input type="text" id="acc-user" placeholder="Username">
+      <input type="password" id="acc-pass" placeholder="Password">
+      <input type="text" id="acc-name" placeholder="Display Name (สำหรับสมัครใหม่)">
+      <button class="btn" style="width: 100%; margin-top: 10px;" onclick="handleLogin()">เข้าสู่ระบบ</button>
+      <button class="btn" style="width: 100%; background: #34495e; margin-top: 5px;" onclick="handleRegister()">ลงทะเบียน</button>
+      <p id="auth-status" style="font-size: 11px; color: #e74c3c; margin-top: 10px;"></p>
+    </div>
   </div>
 
-  <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-    <div id="action-msg">เดินเข้าใกล้โซนเพื่อทำงาน</div>
+  <div id="top-bar">
+    <div>ID: <span id="ui-id" class="green">10000001</span></div>
+    <div>บริษัท: <span id="ui-name">CEO_Player</span></div>
+    <div>เงินทุน: <span id="ui-money" class="gold">$1,000</span></div>
+  </div>
 
-    <!-- Touch Controls for Mobile -->
-    <div id="touch-controls">
-      <div></div><button class="ctrl-btn" id="btn-up">▲</button><div></div>
-      <button class="ctrl-btn" id="btn-left">◄</button><div></div><button class="ctrl-btn" id="btn-right">►</button>
-      <div></div><button class="ctrl-btn" id="btn-down">▼</button><div></div>
+  <div id="main-screen">
+    
+    <div id="page-game" class="tab-page active" style="padding:0;">
+      <canvas id="gameCanvas"></canvas>
     </div>
 
-    <button id="interact-btn" onclick="doAction()">กดทำงาน<br>(SPACE)</button>
+    <div id="page-orders" class="tab-page">
+      <h3 style="margin-bottom:10px;">📦 คำสั่งซื้อสินค้า (Orders)</h3>
+      <div id="orders-container"></div>
+    </div>
+
+    <div id="page-export" class="tab-page">
+      <h3 style="margin-bottom:10px;">🚚 ไลน์การส่งออก & คุมอุณหภูมิ</h3>
+      <div id="export-container"></div>
+    </div>
+
+    <div id="page-leaderboard" class="tab-page">
+      <h3 style="margin-bottom:10px;">🏆 อันดับตารางแข่งขัน (% รายได้)</h3>
+      <div id="leaderboard-container"></div>
+    </div>
+
+    <div id="page-profile" class="tab-page">
+      <h3>👤 โปรไฟล์ผู้เล่น</h3>
+      <div class="card" style="margin-top:10px;">
+        <p>User ID: <b id="prof-id">10000001</b></p>
+        <p>ยอดเงินรวมสะสม: <b id="prof-money" class="gold">$1,000</b></p><br>
+        <label>เปลี่ยนชื่อบริษัท/Display Name:</label>
+        <input type="text" id="edit-display-name" style="width:100%; padding:8px; margin:8px 0; background:#0f111a; color:white; border:1px solid #333; border-radius:4px;">
+        <button class="btn" onclick="saveProfileName()">บันทึกเปลี่ยนชื่อ</button>
+      </div>
+    </div>
+
   </div>
 
   <div id="bottom-nav">
-    <button class="nav-btn active">🏢 คลังสินค้า</button>
+    <button class="nav-item active" onclick="switchTab('game', this)"><span>🏢</span>คลังสินค้า</button>
+    <button class="nav-item" onclick="switchTab('orders', this)"><span>📦</span>ออร์เดอร์</button>
+    <button class="nav-item" onclick="switchTab('export', this)"><span>🚚</span>ไลน์ส่งออก</button>
+    <button class="nav-item" onclick="switchTab('leaderboard', this)"><span>🏆</span>อันดับ</button>
+    <button class="nav-item" onclick="switchTab('profile', this)"><span>👤</span>โปรไฟล์</button>
   </div>
 
 <script>
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
+  // 🔴 นำ API URL จาก SheetDB มาใส่ตรงนี้ 🔴
+  const SHEETDB_URL = "https://sheetdb.io/api/v1/my2ssyufztwjb";
 
-  // Game Data
-  let money = 1000;
-  let playerCrop = 0;
-  const maxCrop = 100;
-
-  // Player Object
-  let player = { x: 150, y: 150, size: 20, speed: 3.5 };
-
-  // Zones in Warehouse
-  const zones = {
-    farm: { x: 50, y: 50, w: 100, h: 80, label: "🌱 โซนเก็บเกี่ยว", color: "#2ecc71" },
-    truck: { x: 260, y: 50, w: 120, h: 80, label: "🚚 ตู้ส่งออก (คุมแอร์)", color: "#e76f51" }
+  let userState = {
+    userId: 10000001,
+    username: "",
+    displayName: "CEO_Player",
+    totalMoney: 1000,
+    startMoney: 1000
   };
 
-  // Truck Temp Logic
-  let truckTemp = 28; // อุณหภูมิห้อง
-  let targetTemp = 4; // อุณหภูมิเป้าหมาย
-  let tempTimer = 0;
+  let activeOrders = [];
+  let shippingTrucks = [];
 
-  // Movement Controls
-  let keys = {};
-  window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(e.code==='Space') doAction(); });
-  window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+  // --- SheetDB Authentication System ---
 
-  // Touch Support
-  const bindTouch = (id, key) => {
-    const el = document.getElementById(id);
-    el.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
-    el.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
-  };
-  bindTouch('btn-up', 'w'); bindTouch('btn-down', 's');
-  bindTouch('btn-left', 'a'); bindTouch('btn-right', 'd');
+  // 1. เข้าสู่ระบบ (GET search)
+  async function handleLogin() {
+    const u = document.getElementById('acc-user').value.trim();
+    const p = document.getElementById('acc-pass').value.trim();
+    const status = document.getElementById('auth-status');
 
-  function resize() {
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
+    if (!u || !p) return status.innerText = "กรุณากรอก Username และ Password";
 
-  // Interaction Logic
-  function nearZone(z) {
-    return player.x > z.x - 20 && player.x < z.x + z.w + 20 &&
-           player.y > z.y - 20 && player.y < z.y + z.h + 20;
-  }
+    status.style.color = "#f1c40f";
+    status.innerText = "กำลังเข้าสู่ระบบ...";
 
-  function doAction() {
-    if (nearZone(zones.farm)) {
-      if (playerCrop < maxCrop) {
-        playerCrop += 20;
-        showMsg("🌱 เก็บเกี่ยวพืชผล +20!");
+    try {
+      const res = await fetch(`${SHEETDB_URL}/search?Username=${encodeURIComponent(u)}&Password=${encodeURIComponent(p)}`);
+      const data = await res.json();
+
+      if (data.length > 0) {
+        const userData = data[0];
+        userState.userId = parseInt(userData["User ID"]);
+        userState.username = userData["Username"];
+        userState.displayName = userData["Display Name"];
+        userState.totalMoney = parseInt(userData["Total Money"]) || 1000;
+        userState.startMoney = userState.totalMoney;
+
+        // อัปเดตเวลาเข้าใช้งานล่าสุด (PATCH)
+        const now = new Date().toISOString();
+        fetch(`${SHEETDB_URL}/User ID/${userState.userId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: { "Last Login Time": now } })
+        });
+
+        document.getElementById('auth-screen').style.display = 'none';
+        updateUI();
+        initCanvasGame();
+        startOrderGenerator();
       } else {
-        showMsg("⚠️ ของเต็มกระเป๋าแล้ว! นำไปส่งที่ตู้ส่งออก");
+        status.style.color = "#e74c3c";
+        status.innerText = "Username หรือ Password ไม่ถูกต้อง";
       }
-    } else if (nearZone(zones.truck)) {
-      if (playerCrop > 0) {
-        // คำนวณเงินตามเกรดอุณหภูมิ
-        let diff = Math.abs(truckTemp - targetTemp);
-        let reward = diff <= 3 ? 500 : (diff <= 8 ? 250 : 50);
-        money += reward;
-        showMsg(`🚚 โหลดสินค้าส่งออกสำเร็จ! ได้รับเงิน $${reward}`);
-        playerCrop = 0;
-      } else {
-        // ถ้าไม่มีของ ให้เป็นการปรับแอร์ตู้ส่งออก
-        truckTemp = Math.max(-5, truckTemp - 3);
-        showMsg(`❄️ เปิดแอร์ลดอุณหภูมิเหลือ ${truckTemp}°C`);
-      }
+    } catch (err) {
+      status.style.color = "#e74c3c";
+      status.innerText = "เกิดข้อผิดพลาดในการเชื่อมต่อ SheetDB";
     }
-    updateUI();
   }
 
-  function showMsg(text) {
-    const msg = document.getElementById('action-msg');
-    msg.innerText = text;
-    msg.style.display = 'block';
-    setTimeout(() => msg.style.display = 'none', 2000);
+  // 2. ลงทะเบียน (POST Data)
+  async function handleRegister() {
+    const u = document.getElementById('acc-user').value.trim();
+    const p = document.getElementById('acc-pass').value.trim();
+    const n = document.getElementById('acc-name').value.trim() || u;
+    const status = document.getElementById('auth-status');
+
+    if (!u || !p) return status.innerText = "กรุณากรอกข้อมูลให้ครบถ้วน";
+
+    status.style.color = "#f1c40f";
+    status.innerText = "กำลังลงทะเบียน...";
+
+    try {
+      // เช็กก่อนว่ามี Username นี้หรือยัง
+      const checkRes = await fetch(`${SHEETDB_URL}/search?Username=${encodeURIComponent(u)}`);
+      const checkData = await checkRes.json();
+
+      if (checkData.length > 0) {
+        status.style.color = "#e74c3c";
+        return status.innerText = "Username นี้ถูกใช้งานแล้ว";
+      }
+
+      // ดึงข้อมูลทั้งหมดเพื่อคำนวณ User ID ถัดไป (เริ่มที่ 10000001)
+      const allRes = await fetch(SHEETDB_URL);
+      const allData = await allRes.json();
+      const newId = 10000001 + allData.length;
+      const now = new Date().toISOString();
+
+      const newUser = {
+        "User ID": newId,
+        "Username": u,
+        "Password": p,
+        "Last Login Time": now,
+        "Display Name": n,
+        "Total Money": 1000
+      };
+
+      await fetch(SHEETDB_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: [newUser] })
+      });
+
+      userState = {
+        userId: newId,
+        username: u,
+        displayName: n,
+        totalMoney: 1000,
+        startMoney: 1000
+      };
+
+      document.getElementById('auth-screen').style.display = 'none';
+      updateUI();
+      initCanvasGame();
+      startOrderGenerator();
+    } catch (err) {
+      status.style.color = "#e74c3c";
+      status.innerText = "ไม่สามารถลงทะเบียนได้";
+    }
   }
+
+  // 3. เปลี่ยนชื่อโปรไฟล์ (PATCH)
+  async function saveProfileName() {
+    const newName = document.getElementById('edit-display-name').value.trim();
+    if (!newName) return;
+
+    userState.displayName = newName;
+    updateUI();
+
+    await fetch(`${SHEETDB_URL}/User ID/${userState.userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { "Display Name": newName } })
+    });
+    alert('บันทึกการเปลี่ยนชื่อเรียบร้อยแล้ว!');
+  }
+
+  // 4. บันทึกเงินลง Google Sheets (PATCH)
+  async function saveMoneyToSheet() {
+    fetch(`${SHEETDB_URL}/User ID/${userState.userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { "Total Money": userState.totalMoney } })
+    });
+  }
+
+  // --- UI & Game Logic ---
 
   function updateUI() {
-    document.getElementById('ui-money').innerText = '$' + money;
-    document.getElementById('ui-crop').innerText = `${playerCrop}/${maxCrop}`;
+    document.getElementById('ui-id').innerText = userState.userId;
+    document.getElementById('ui-name').innerText = userState.displayName;
+    document.getElementById('ui-money').innerText = '$' + userState.totalMoney.toLocaleString();
+    document.getElementById('prof-id').innerText = userState.userId;
+    document.getElementById('prof-money').innerText = '$' + userState.totalMoney.toLocaleString();
+    document.getElementById('edit-display-name').value = userState.displayName;
   }
 
-  // Main Loop
-  function update() {
-    // Movement
-    if (keys['w'] || keys['arrowup']) player.y -= player.speed;
-    if (keys['s'] || keys['arrowdown']) player.y += player.speed;
-    if (keys['a'] || keys['arrowleft']) player.x -= player.speed;
-    if (keys['d'] || keys['arrowright']) player.x += player.speed;
+  function switchTab(tabId, btn) {
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.getElementById('page-' + tabId).classList.add('active');
+    btn.classList.add('active');
 
-    // Boundaries
-    player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
-    player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
-
-    // Simulation: Temp rises over time
-    tempTimer++;
-    if (tempTimer % 180 === 0) { // ทุกๆ 3 วินาที แอร์จะอุ่นขึ้น
-      truckTemp++;
-    }
+    if (tabId === 'orders') renderOrdersUI();
+    if (tabId === 'export') renderExportUI();
+    if (tabId === 'leaderboard') loadLeaderboard();
   }
 
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // ดึงตารางอันดับ % รายได้จาก SheetDB
+  async function loadLeaderboard() {
+    const container = document.getElementById('leaderboard-container');
+    container.innerHTML = '<p style="color:#888;">กำลังโหลดอันดับจากตาราง...</p>';
 
-    // Grid Floor
-    ctx.strokeStyle = '#1a1a1a';
-    for (let x = 0; x < canvas.width; x += 30) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += 30) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-    }
+    try {
+      const res = await fetch(SHEETDB_URL);
+      const data = await res.json();
 
-    // Draw Zones
-    for (let key in zones) {
-      let z = zones[key];
-      ctx.fillStyle = z.color;
-      ctx.globalAlpha = 0.3;
-      ctx.fillRect(z.x, z.y, z.w, z.h);
-      ctx.globalAlpha = 1.0;
-      ctx.strokeStyle = z.color;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(z.x, z.y, z.w, z.h);
+      // เรียงลำดับตาม Total Money จากมากไปน้อย
+      data.sort((a, b) => (parseInt(b["Total Money"]) || 0) - (parseInt(a["Total Money"]) || 0));
 
-      ctx.fillStyle = "#fff";
-      ctx.font = "12px sans-serif";
-      ctx.fillText(z.label, z.x + 5, z.y + 20);
-    }
+      container.innerHTML = '';
+      data.forEach((player, idx) => {
+        const money = parseInt(player["Total Money"]) || 1000;
+        const pct = (((money - 1000) / 1000) * 100).toFixed(1);
+        const isMe = player["User ID"] == userState.userId;
 
-    // Display Truck Temp
-    ctx.fillStyle = "#fff";
-    ctx.font = "11px sans-serif";
-    let tempDiff = Math.abs(truckTemp - targetTemp);
-    let grade = tempDiff <= 3 ? "🟢 เขียว (สดมาก)" : (tempDiff <= 8 ? "🟡 เหลือง (พอใช้)" : "🔴 แดง (เน่า)");
-    ctx.fillText(`อุณหภูมิ: ${truckTemp}°C (เป้าหมาย ${targetTemp}°C)`, zones.truck.x + 5, zones.truck.y + 45);
-    ctx.fillText(`เกรด: ${grade}`, zones.truck.x + 5, zones.truck.y + 65);
-
-    // Draw Player
-    ctx.fillStyle = '#00ffcc';
-    ctx.beginPath();
-    ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Check interaction prompt
-    if (nearZone(zones.farm)) {
-      ctx.fillStyle = "#2ecc71";
-      ctx.fillText("กดทำงานเพื่อเก็บพืช", player.x - 40, player.y - 25);
-    } else if (nearZone(zones.truck)) {
-      ctx.fillStyle = "#e76f51";
-      ctx.fillText("กดทำงานเพื่อส่งของ/กดลดอุณหภูมิ", player.x - 70, player.y - 25);
-    }
-  }
-
-  function gameLoop() {
-    update();
-    draw();
-    requestAnimationFrame(gameLoop);
-  }
-
-  gameLoop();
-</script>
-</body>
-</html>
+        container.innerHTML += `
+          <div class="card" style="${isMe ? 'border-left-color:#2ecc71; background:#252940;' : ''}">
+            <span>${idx ===
+  
